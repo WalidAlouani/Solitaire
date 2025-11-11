@@ -1,6 +1,8 @@
 using Solitaire.Domain;
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -24,6 +26,7 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
     // Components
     private RectTransform rectTransform;
     private CanvasGroup canvasGroup;
+    private Collider2D _collider;
 
     // State
     private Transform originalParent;
@@ -39,6 +42,7 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
     {
         rectTransform = GetComponent<RectTransform>();
         canvasGroup = GetComponent<CanvasGroup>();
+        _collider = GetComponent<Collider2D>();
     }
 
     public void Initialize(Card model)
@@ -130,6 +134,7 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
 
         // Block raycasts so we can detect drops on Piles underneath
         canvasGroup.blocksRaycasts = false;
+        _collider.enabled = true;
 
         // Calculate offset from card pivot to mouse position
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
@@ -162,30 +167,26 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
         // Re-enable raycasts
         canvasGroup.blocksRaycasts = true;
 
-        // Check if OnDrop was successful on a PileView
-        if (!GameEvents.WasDropSuccessfulThisFrame)
-        {
-            // If not, the drop failed. Tell the system.
-            GameEvents.RaiseCardDragFailed(this);
-        }
+        // Check overlapping drop zones
+        var piles = overlappingZones.Select(el=> el.PileView).ToList();
 
+        GameEvents.RaiseCardDroppedOnPiles(this, piles);
+
+        _collider.enabled = false;
         isDragging = false;
-        // The Presenter will now decide where this card lives.
-        // It will either tell it to move to the new pile
-        // or (on fail) tell it to move back to originalParent.
     }
 
     // --- Public methods for Presenter to call ---
 
-    public void AnimateMove(Transform newParent, Vector2 targetAnchoredPosition, float duration = 0.15f)
+    public void AnimateMove(PileView newParent, Vector2 targetAnchoredPosition, float duration = 0.15f)
     {
         // Start animation
         StartCoroutine(MoveCoroutine(newParent, targetAnchoredPosition, duration));
     }
 
-    private IEnumerator MoveCoroutine(Transform newParent, Vector2 target, float duration)
+    private IEnumerator MoveCoroutine(PileView newParent, Vector2 target, float duration)
     {
-        transform.SetParent(newParent);
+        newParent.ParentToPile(this);
 
         Vector2 startPos = rectTransform.anchoredPosition;
         float time = 0f;
@@ -205,7 +206,7 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
             var cardView = _cardsHolder.GetChild(0).GetComponent<CardView>();
             if (cardView != null)
             {
-                cardView.transform.SetParent(newParent);
+                newParent.ParentToPile(cardView);
             }
         }
 
@@ -245,5 +246,41 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
             yield return null;
         }
         transform.localScale = startScale;
+    }
+
+
+    // --- PHYSICS TRIGGER EVENTS ---
+
+    private List<DropZone> overlappingZones = new List<DropZone>();
+
+    /// <summary>
+    /// This event fires when our collider (attached to a Rigidbody)
+    /// enters another collider that is set to 'Is Trigger'.
+    /// </summary>
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        // Check if the object we hit is a DropZone
+        if (other.TryGetComponent(out DropZone zone))
+        {
+            // It is! Add it to our list of overlapped zones.
+            if (!overlappingZones.Contains(zone))
+            {
+                overlappingZones.Add(zone);
+            }
+        }
+    }
+
+    /// <summary>
+    /// This event fires when our collider leaves the trigger collider.
+    /// </summary>
+    private void OnTriggerExit2D(Collider2D other)
+    {
+        // Check if the object we're leaving is a DropZone
+        if (other.TryGetComponent(out DropZone zone))
+        {
+            Debug.Log($"CardView exited DropZone: {zone.gameObject.name}");
+            // It is! Remove it from our list.
+            overlappingZones.Remove(zone);
+        }
     }
 }

@@ -28,7 +28,7 @@ public class TableauPile : CardPile
 
     public override bool CanAddCard(CardPile origin, Card card)
     {
-        if (Count == 0)
+        if (IsEmpty())
         {
             return card.Rank == Rank.King; // Only Kings on empty tableaus
         }

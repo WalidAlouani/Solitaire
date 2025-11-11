@@ -2,9 +2,8 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(RectTransform))]
-public class PileView : MonoBehaviour, IDropHandler
+public class PileView : MonoBehaviour
 {
-
     [Header("Stacking (Tableau)")]
     [SerializeField] private RectTransform _cardsHolder;
     [SerializeField] private float _faceUpOffset = 0;
@@ -12,8 +11,6 @@ public class PileView : MonoBehaviour, IDropHandler
 
     public CardPile Model { get; private set; }
     public RectTransform CardsHolder => _cardsHolder;
-    public float FaceUpOffset => _faceUpOffset;
-    public float FaceDownOffset => _faceDownOffset;
 
     public void Initialize(CardPile model)
     {
@@ -21,23 +18,10 @@ public class PileView : MonoBehaviour, IDropHandler
         gameObject.name = model.GetType().Name;
     }
 
-    /// <summary>
-    /// Called by UGUI when a drag ends on this object.
-    /// </summary>
-    public void OnDrop(PointerEventData eventData)
+    public void ParentToPile(CardView cardView)
     {
-        // Get the CardView being dragged
-        CardView cardView = eventData.pointerDrag.GetComponent<CardView>();
-
-        if (cardView == null)
-            return;
-
-        // Tell the system a drop occurred
-        // The Presenter will validate this move
-        GameEvents.RaiseCardDroppedOnPile(cardView, this);
-
-        // Mark the drop as successful
-        GameEvents.WasDropSuccessfulThisFrame = true;
+        cardView.transform.SetParent(_cardsHolder);
+        cardView.transform.SetAsLastSibling();
     }
 
     /// <summary>

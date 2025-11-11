@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -15,6 +16,10 @@ public static class GameEvents
     // Fired by PileView when a card is dropped on it
     public static event Action<CardView, PileView> OnCardDroppedOnPile;
     public static void RaiseCardDroppedOnPile(CardView cardView, PileView pileView) => OnCardDroppedOnPile?.Invoke(cardView, pileView);
+
+    // Fired by CardView when dropped on multiple piles (for UGUI compatibility)
+    public static event Action<CardView, List<PileView>> OnCardDroppedOnPiles;
+    public static void RaiseCardDroppedOnPiles(CardView cardView, List<PileView> pilesView) => OnCardDroppedOnPiles?.Invoke(cardView, pilesView);
 
     // Fired by CardView when a drag ends on an invalid location
     public static event Action<CardView> OnCardDragFailed;

@@ -25,7 +25,7 @@ public class WastePile : CardPile
     /// <returns>True only if it's the top card.</returns>
     public override bool CanRemoveCard(Card card)
     {
-        if (Count == 0)
+        if (IsEmpty())
             return false;
 
         // You can only remove the top card of the waste

@@ -31,9 +31,9 @@ public class Game
         }
 
         Foundations = new List<FoundationPile>();
-        foreach (var suit in Enum.GetValues(typeof(Suit)).Cast<Suit>())
+        for (int i = 0; i < 4; i++)
         {
-            Foundations.Add(new FoundationPile(suit));
+            Foundations.Add(new FoundationPile());
         }
 
         _deck = DeckFactory.CreateDeck();
@@ -100,7 +100,6 @@ public class Game
         if (!tableauDestination.CanAddCard(tableauOrigin, cardStack[0]))
             return false;
 
-        // Perform the move
         foreach (var card in cardStack)
         {
             MoveCard(card, tableauDestination, tableauOrigin);
@@ -128,7 +127,6 @@ public class Game
 
         TryMoveCard(Stock.Peek(), Waste);
     }
-
 
     public CardPile FindPileForCard(Card card)
     {

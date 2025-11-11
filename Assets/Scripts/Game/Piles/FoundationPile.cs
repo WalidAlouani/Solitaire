@@ -4,20 +4,16 @@ public class FoundationPile : CardPile
 {
     public Suit Suit { get; private set; }
 
-    public FoundationPile(Suit suit)
-    {
-        Suit = suit;
-    }
-
     public override bool CanAddCard(CardPile origin, Card card)
     {
-        if (card.Suit != this.Suit)
-            return false;
-
-        if (Count == 0)
+        if (IsEmpty())
         {
+            Suit = card.Suit;
             return card.Rank == Rank.Ace; // Only Aces on empty foundations
         }
+
+        if (card.Suit != this.Suit)
+            return false;
 
         if (origin.Peek() != card)
             return false;
@@ -28,9 +24,11 @@ public class FoundationPile : CardPile
 
     public override bool CanRemoveCard(Card card)
     {
-        // Right now, cards cannot be removed from foundation piles
-        // Add the possibility later
-        return false;
+        if (IsEmpty())
+            return false;
+
+        // You can only remove the top card of the foundation
+        return card == Peek();
     }
 
     public override void OnCardAdded(Card card)

@@ -144,8 +144,7 @@ public class GameTests
         });
 
         // Foundation for Spades is empty
-        var foundation = game.Foundations.Find(f => f.Suit == Suit.Spades);
-        foundation.SetCards(new List<Card>());
+        var foundation = game.Foundations[0];
 
         // Move Ace to foundation
         var wasteCard = game.Waste.Peek(); // Ace of Spades

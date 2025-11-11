@@ -28,7 +28,7 @@ public class GamePresenter : MonoBehaviour
     {
         // Listen to UI events
         GameEvents.OnCardClicked += HandleCardClicked;
-        GameEvents.OnCardDroppedOnPile += HandleCardDroppedOnPile;
+        GameEvents.OnCardDroppedOnPiles += HandleCardDroppedOnPiles;
         GameEvents.OnCardDragFailed += HandleCardDragFailed;
         GameEvents.OnStockClicked += HandleStockClicked;
     }
@@ -37,7 +37,7 @@ public class GamePresenter : MonoBehaviour
     {
         // Stop listening to UI events
         GameEvents.OnCardClicked -= HandleCardClicked;
-        GameEvents.OnCardDroppedOnPile -= HandleCardDroppedOnPile;
+        GameEvents.OnCardDroppedOnPiles -= HandleCardDroppedOnPiles;
         GameEvents.OnCardDragFailed -= HandleCardDragFailed;
         GameEvents.OnStockClicked -= HandleStockClicked;
 
@@ -107,12 +107,13 @@ public class GamePresenter : MonoBehaviour
 
     private CardView SpawnCard(Card cardModel, PileView pileView)
     {
-        CardView cardView = Instantiate(cardPrefab, pileView.CardsHolder);
+        CardView cardView = Instantiate(cardPrefab, pileView.transform);
 
         cardView.Initialize(cardModel);
         cardView.TopLevelCanvasTransform = topLevelCanvas;
 
         cardViewMap.Add(cardModel, cardView);
+
         return cardView;
     }
 
@@ -132,10 +133,9 @@ public class GamePresenter : MonoBehaviour
             foreach (Card card in cardsInPile)
             {
                 CardView cardView = cardViewMap[card];
-                cardView.transform.SetParent(pileView.CardsHolder); // Ensure parent
+                pileView.ParentToPile(cardView);
                 Vector2 nextPos = new Vector2(0, pileView.GetCardPosition(card));
                 cardView.GetComponent<RectTransform>().anchoredPosition = nextPos;
-                cardView.transform.SetAsLastSibling(); // Puts top card... on top
             }
         }
     }
@@ -171,10 +171,18 @@ public class GamePresenter : MonoBehaviour
         }
     }
 
-    private void HandleCardDroppedOnPile(CardView cardView, PileView pileView)
+    private void HandleCardDroppedOnPiles(CardView cardView, List<PileView> pilesView)
     {
+        bool success = false;
+
+        foreach (var pileView in pilesView)
+        {
+            success = game.TryMoveCard(cardView.Model, pileView.Model);
+            if (success)
+                break;
+        }
+
         // A drop happened. Validate it with the Model.
-        bool success = game.TryMoveCard(cardView.Model, pileView.Model);
 
         if (!success)
         {
@@ -209,7 +217,7 @@ public class GamePresenter : MonoBehaviour
 
         var targetPos = pileView.GetNextCardPosition();
 
-        cardView.AnimateMove(pileView.CardsHolder, new Vector2(0, targetPos));
+        cardView.AnimateMove(pileView, new Vector2(0, targetPos));
     }
 
     private void HandleCardFlipped(Card card)
