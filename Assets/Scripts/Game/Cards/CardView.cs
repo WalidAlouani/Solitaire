@@ -50,33 +50,33 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
         Model = model;
         gameObject.name = $"{model.Rank} of {model.Suit}";
 
-        suitImage.sprite = Resources.Load<Sprite>($"Suits/{model.Suit}");
+        suitImageSmall.sprite = Resources.Load<Sprite>($"Suits/{model.Suit}");
 
         switch (model.Rank)
         {
             case Rank.Ace:
                 _rankText.text = "A";
                 var color1 = model.IsRed ? "Red" : "Black";
-                suitImageSmall.sprite = Resources.Load<Sprite>($"Ranks/{color1}/{model.Rank}");
+                suitImage.sprite = Resources.Load<Sprite>($"Suits/{model.Suit}");
                 break;
             case Rank.Jack:
                 _rankText.text = "J";
                 var color2 = model.IsRed ? "Red" : "Black";
-                suitImageSmall.sprite = Resources.Load<Sprite>($"Ranks/{color2}/{model.Rank}");
+                suitImage.sprite = Resources.Load<Sprite>($"Ranks/{color2}/{model.Rank}");
                 break;
             case Rank.Queen:
                 _rankText.text = "Q";
                 var color3 = model.IsRed ? "Red" : "Black";
-                suitImageSmall.sprite = Resources.Load<Sprite>($"Ranks/{color3}/{model.Rank}");
+                suitImage.sprite = Resources.Load<Sprite>($"Ranks/{color3}/{model.Rank}");
                 break;
             case Rank.King:
                 _rankText.text = "K";
                 var color4 = model.IsRed ? "Red" : "Black";
-                suitImageSmall.sprite = Resources.Load<Sprite>($"Ranks/{color4}/{model.Rank}");
+                suitImage.sprite = Resources.Load<Sprite>($"Ranks/{color4}/{model.Rank}");
                 break;
             default:
                 _rankText.text = ((int)model.Rank).ToString();
-                suitImageSmall.sprite = Resources.Load<Sprite>($"Suits/{model.Suit}");
+                suitImage.sprite = Resources.Load<Sprite>($"Suits/{model.Suit}");
                 break;
         }
 

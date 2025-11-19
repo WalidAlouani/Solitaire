@@ -1,6 +1,5 @@
-using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 public class GamePresenter : MonoBehaviour
@@ -54,11 +53,6 @@ public class GamePresenter : MonoBehaviour
     {
         game = new Game();
 
-        // Listen to Model events
-        game.OnCardMoved += HandleCardMoved;
-        game.OnCardFlipped += HandleCardFlipped;
-        game.OnGameWon += HandleGameWon;
-
         // Bind Model piles to View piles
         for (int i = 0; i < game.Tableaus.Count; i++)
         {
@@ -78,64 +72,67 @@ public class GamePresenter : MonoBehaviour
         pileViewMap.Add(game.Waste, wastePileView);
         wastePileView.Initialize(game.Waste);
 
-        game.Deal();
+        game.RecycleAndSuffleStock();
 
         SpawnAndPlaceAllCards();
+
+        game.PopulateTableauPiles();
+
+        // All cards are spawned. Now update their positions.
+        StartCoroutine(RefreshAllPileLayouts());
+
+        // Listen to Model events
+        game.OnCardMoved += HandleCardMoved;
+        game.OnCardFlipped += HandleCardFlipped;
+        game.OnGameWon += HandleGameWon;
     }
 
     private void SpawnAndPlaceAllCards()
     {
         // 1. Stock
-        foreach (Card card in game.Stock.GetCards())
+        var stockPile = game.Stock.GetCardsReverse();
+
+        foreach (Card card in stockPile)
         {
             SpawnCard(card, stockPileView);
         }
-
-        // 2. Tableaus
-        foreach (TableauPile tableau in game.Tableaus)
-        {
-            PileView pileView = pileViewMap[tableau];
-            foreach (Card card in tableau.GetCards().AsReadOnly().Reverse()) // Must reverse stack
-            {
-                SpawnCard(card, pileView);
-            }
-        }
-
-        // All cards are spawned. Now update their positions.
-        RefreshAllPileLayouts();
     }
 
     private CardView SpawnCard(Card cardModel, PileView pileView)
     {
-        CardView cardView = Instantiate(cardPrefab, pileView.transform);
+        CardView cardView = Instantiate(cardPrefab, pileView.CardsHolder.transform);
 
         cardView.Initialize(cardModel);
         cardView.TopLevelCanvasTransform = topLevelCanvas;
 
         cardViewMap.Add(cardModel, cardView);
 
+        pileView.ParentToPile(cardView);
+        Vector2 nextPos = new Vector2(0, pileView.GetCardPosition(cardModel));
+        cardView.GetComponent<RectTransform>().anchoredPosition = nextPos;
+
         return cardView;
     }
 
-    private void RefreshAllPileLayouts()
+    private IEnumerator RefreshAllPileLayouts()
     {
+        yield return new WaitForSeconds(1f);
+
         // This is the "magic" that stacks cards correctly
         foreach (var tableau in game.Tableaus)
         {
             PileView pileView = pileViewMap[tableau];
 
-            // GetCards() returns a list from bottom-of-stack to top
-            List<Card> cardsInPile = tableau.GetCards();
-
-            // We must reverse to stack from bottom-up visually
-            cardsInPile.Reverse();
+            List<Card> cardsInPile = tableau.GetCardsReverse();
 
             foreach (Card card in cardsInPile)
             {
+                yield return new WaitForSeconds(0.1f);
                 CardView cardView = cardViewMap[card];
-                pileView.ParentToPile(cardView);
                 Vector2 nextPos = new Vector2(0, pileView.GetCardPosition(card));
-                cardView.GetComponent<RectTransform>().anchoredPosition = nextPos;
+                cardView.AnimateMove(pileView, nextPos);
+                if (card.IsFaceUp)
+                    cardView.AnimateFlip();
             }
         }
     }
@@ -156,18 +153,14 @@ public class GamePresenter : MonoBehaviour
         foreach (var foundation in game.Foundations)
         {
             if (game.TryMoveCard(cardView.Model, foundation))
-            {
                 return;
-            }
         }
 
         // Try auto-move to tableau
         foreach (var tableau in game.Tableaus)
         {
             if (game.TryMoveCard(cardView.Model, tableau))
-            {
                 return;
-            }
         }
     }
 
@@ -182,15 +175,11 @@ public class GamePresenter : MonoBehaviour
                 break;
         }
 
-        // A drop happened. Validate it with the Model.
-
         if (!success)
         {
             // Move failed validation. Send it back.
             HandleCardDragFailed(cardView);
         }
-        // If success, the game.OnCardMoved event will fire
-        // and HandleCardMoved will position it correctly.
     }
 
     private void HandleCardDragFailed(CardView cardView)
@@ -199,7 +188,6 @@ public class GamePresenter : MonoBehaviour
         CardPile originPile = game.FindPileForCard(cardView.Model);
         PileView originView = pileViewMap[originPile];
 
-        // We just re-call HandleCardMoved with the *current* model state
         HandleCardMoved(cardView.Model, originPile);
     }
 
@@ -223,9 +211,7 @@ public class GamePresenter : MonoBehaviour
     private void HandleCardFlipped(Card card)
     {
         if (!cardViewMap.TryGetValue(card, out CardView cardView))
-        {
             return;
-        }
 
         cardView.AnimateFlip();
     }

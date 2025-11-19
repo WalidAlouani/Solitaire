@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 public abstract class CardPile
 {
@@ -12,6 +13,7 @@ public abstract class CardPile
     public void Clear() => cards.Clear();
 
     public List<Card> GetCards() => new List<Card>(cards); // Return a copy
+    public List<Card> GetCardsReverse() => new List<Card>(cards.Reverse()); // Return a copy
 
     /// <summary>
     /// Sets the pile's cards to the given list, with the last card in the list becoming the top of the pile.

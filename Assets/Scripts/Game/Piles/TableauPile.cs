@@ -1,6 +1,5 @@
 using Solitaire.Domain;
 using System.Collections.Generic;
-using System.Linq;
 
 public class TableauPile : CardPile
 {
@@ -8,8 +7,7 @@ public class TableauPile : CardPile
     public bool TryGetCardStack(Card topCard, out List<Card> cardsStack)
     {
         cardsStack = null;
-        var allCards = GetCards();
-        allCards.Reverse(); // bottom-to-top order
+        var allCards = GetCardsReverse();
 
         int index = allCards.IndexOf(topCard);
         if (index == -1)

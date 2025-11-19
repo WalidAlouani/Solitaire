@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(RectTransform))]
 public class PileView : MonoBehaviour
@@ -49,14 +48,13 @@ public class PileView : MonoBehaviour
 
     public float GetCardPosition(Card targetCard)
     {
-        var cards = Model.GetCards();
+        var cards = Model.GetCardsReverse();
         if (!cards.Contains(targetCard))
         {
             Debug.LogWarning("PileView.GetCardPosition called for a card not in the pile!");
             return 0;
         }
 
-        cards.Reverse();
         float position = 0;
 
         for (int i = 0; i < cards.Count; i++)
