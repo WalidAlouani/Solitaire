@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -20,6 +21,8 @@ public class GamePresenter : MonoBehaviour
     // Mappings to connect Model and View
     private Dictionary<Card, CardView> cardViewMap = new Dictionary<Card, CardView>();
     private Dictionary<CardPile, PileView> pileViewMap = new Dictionary<CardPile, PileView>();
+
+    private bool _canInteract = false;
 
     public Game Game => game;
 
@@ -129,12 +132,13 @@ public class GamePresenter : MonoBehaviour
             {
                 yield return new WaitForSeconds(0.1f);
                 CardView cardView = cardViewMap[card];
-                Vector2 nextPos = new Vector2(0, pileView.GetCardPosition(card));
-                cardView.AnimateMove(pileView, nextPos);
+                cardView.AnimateMove(pileView);
                 if (card.IsFaceUp)
                     cardView.AnimateFlip();
             }
         }
+
+        SetAllCardsInteraction(true);
     }
 
     // --- Event Handler (Listens to VIEW) ---
@@ -193,6 +197,9 @@ public class GamePresenter : MonoBehaviour
 
     public void HandleStockClicked()
     {
+        if (!_canInteract)
+            return;
+
         game.DrawFromStock();
     }
 
@@ -203,9 +210,16 @@ public class GamePresenter : MonoBehaviour
         CardView cardView = cardViewMap[card];
         PileView pileView = pileViewMap[newPile];
 
-        var targetPos = pileView.GetNextCardPosition();
+        cardView.AnimateMove(pileView);
+        SetAllCardsInteraction(false);
 
-        cardView.AnimateMove(pileView, new Vector2(0, targetPos));
+        cardView.OnCardMoveCompleted += CardMoveCompleted;
+    }
+
+    private void CardMoveCompleted(CardView cardView)
+    {
+        cardView.OnCardMoveCompleted -= CardMoveCompleted;
+        SetAllCardsInteraction(true);
     }
 
     private void HandleCardFlipped(Card card)
@@ -214,6 +228,24 @@ public class GamePresenter : MonoBehaviour
             return;
 
         cardView.AnimateFlip();
+        SetAllCardsInteraction(false);
+
+        cardView.OnCardFlipCompleted += CardFlipCompleted;
+    }
+
+    private void CardFlipCompleted(CardView cardView)
+    {
+        cardView.OnCardFlipCompleted -= CardFlipCompleted;
+        SetAllCardsInteraction(true);
+    }
+
+    private void SetAllCardsInteraction(bool interactable)
+    {
+        _canInteract = interactable;
+        foreach (var kvp in cardViewMap)
+        {
+            kvp.Value.SetInteractable(interactable);
+        }
     }
 
     private void HandleGameWon()

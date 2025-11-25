@@ -24,24 +24,28 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
     [SerializeField] private Transform _cardsHolder;
 
     // Components
-    private RectTransform rectTransform;
-    private CanvasGroup canvasGroup;
+    private RectTransform _rectTransform;
+    private CanvasGroup _canvasGroup;
     private Collider2D _collider;
 
     // State
-    private Transform originalParent;
-    private Vector2 dragOffset;
-    private bool isDragging = false;
+    private Transform _originalParent;
+    private Vector2 _dragOffset;
+    private bool _isDragging = false;
+    private bool _canInteract = false;
 
     // This must be set by the Presenter on spawn!
     public Transform TopLevelCanvasTransform { get; set; }
 
-    public Action OnCardMoveCompleted;
+    public Action<CardView> OnCardMoveStarted;
+    public Action<CardView> OnCardMoveCompleted;
+    public Action<CardView> OnCardFlipStarted;
+    public Action<CardView> OnCardFlipCompleted;
 
     void Awake()
     {
-        rectTransform = GetComponent<RectTransform>();
-        canvasGroup = GetComponent<CanvasGroup>();
+        _rectTransform = GetComponent<RectTransform>();
+        _canvasGroup = GetComponent<CanvasGroup>();
         _collider = GetComponent<Collider2D>();
     }
 
@@ -92,14 +96,21 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
         backImage.gameObject.SetActive(!isFaceUp);
     }
 
+    public void SetInteractable(bool interactable)
+    {
+        _canInteract = interactable;
+    }
+
     // --- Input Reporting (IPointer interfaces) ---
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        if (!_canInteract) return;
+
         // Don't register click if it was the end of a drag
-        if (isDragging)
+        if (_isDragging)
         {
-            isDragging = false; // Reset flag
+            _isDragging = false; // Reset flag
             return;
         }
 
@@ -108,20 +119,22 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        if (!_canInteract) return;
+
         if (!Model.IsFaceUp) return; // Can't drag face-down cards
 
-        isDragging = true;
+        _isDragging = true;
         GameEvents.WasDropSuccessfulThisFrame = false; // Reset flag
 
         // Store original parent (its PileView) to return to if drag fails
-        originalParent = transform.parent;
+        _originalParent = transform.parent;
 
         // Gather all cards in the stack being dragged
         int thisIndex = transform.GetSiblingIndex();
-        int childCount = originalParent.childCount;
+        int childCount = _originalParent.childCount;
         for (int i = thisIndex + 1; i < childCount; i++)
         {
-            var cardView = originalParent.GetChild(thisIndex + 1).GetComponent<CardView>();
+            var cardView = _originalParent.GetChild(thisIndex + 1).GetComponent<CardView>();
             if (cardView != null)
             {
                 cardView.transform.SetParent(_cardsHolder);
@@ -133,21 +146,21 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
         transform.SetAsLastSibling(); // Ensure it's on top
 
         // Block raycasts so we can detect drops on Piles underneath
-        canvasGroup.blocksRaycasts = false;
+        _canvasGroup.blocksRaycasts = false;
         _collider.enabled = true;
 
         // Calculate offset from card pivot to mouse position
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            rectTransform,
+            _rectTransform,
             eventData.position,
             eventData.pressEventCamera,
-            out dragOffset
+            out _dragOffset
         );
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (!isDragging) return;
+        if (!_isDragging) return;
 
         // Follow mouse
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
@@ -156,61 +169,77 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
             eventData.pressEventCamera,
             out Vector2 localPoint))
         {
-            rectTransform.localPosition = localPoint - dragOffset;
+            _rectTransform.localPosition = localPoint - _dragOffset;
         }
     }
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        if (!isDragging) return;
+        if (!_isDragging) return;
 
         // Re-enable raycasts
-        canvasGroup.blocksRaycasts = true;
+        _canvasGroup.blocksRaycasts = true;
 
         // Check overlapping drop zones
-        var piles = overlappingZones.Select(el=> el.PileView).ToList();
+        var piles = overlappingZones.Select(el => el.PileView).ToList();
 
         GameEvents.RaiseCardDroppedOnPiles(this, piles);
 
         _collider.enabled = false;
-        isDragging = false;
+        _isDragging = false;
     }
 
     // --- Public methods for Presenter to call ---
 
-    public void AnimateMove(PileView newParent, Vector2 targetAnchoredPosition, float duration = 0.15f)
+    public void AnimateMove(PileView newParent, float duration = 0.2f)
     {
         // Start animation
-        StartCoroutine(MoveCoroutine(newParent, targetAnchoredPosition, duration));
+        StartCoroutine(MoveCoroutine(newParent, duration));
     }
 
-    private IEnumerator MoveCoroutine(PileView newParent, Vector2 target, float duration)
+    private IEnumerator MoveCoroutine(PileView newParent, float duration)
     {
-        newParent.ParentToPile(this);
+        OnCardMoveStarted?.Invoke(this);
 
-        Vector2 startPos = rectTransform.anchoredPosition;
+        Vector2 target = new Vector2(0, newParent.GetCardPosition(Model));
+
+        // Ensure card is parented to top-level canvas for animation
+        transform.SetParent(TopLevelCanvasTransform);
+
+        // Convert the local position in the destination pile to world space
+        RectTransform newParentCardsHolder = newParent.CardsHolder;
+        Vector3 worldTargetPos = newParentCardsHolder.TransformPoint(new Vector3(target.x, target.y, 0));
+
+        // Convert world position to canvas-space anchored position
+        Vector3 canvasSpacePos = TopLevelCanvasTransform.InverseTransformPoint(worldTargetPos);
+        Vector2 targetCanvasPos = new Vector2(canvasSpacePos.x, canvasSpacePos.y);
+
+        Vector2 startPos = _rectTransform.anchoredPosition;
         float time = 0f;
 
         while (time < duration)
         {
             time += Time.deltaTime;
-            rectTransform.anchoredPosition = Vector2.Lerp(startPos, target, time / duration);
+            _rectTransform.anchoredPosition = Vector2.Lerp(startPos, targetCanvasPos, time / duration);
             yield return null;
         }
-        rectTransform.anchoredPosition = target;
+        _rectTransform.anchoredPosition = targetCanvasPos;
+
+        // Now parent the card to the destination pile
+        newParent.ParentToPile(this);
 
         // Re-parent any child cards to the new parent as well
         int childCount = _cardsHolder.childCount;
         for (int i = 0; i < childCount; i++)
         {
             var cardView = _cardsHolder.GetChild(0).GetComponent<CardView>();
-            if (cardView != null)
-            {
-                newParent.ParentToPile(cardView);
-            }
+            if (cardView == null)
+                continue;
+
+            newParent.ParentToPile(cardView);
         }
 
-        OnCardMoveCompleted?.Invoke();
+        OnCardMoveCompleted?.Invoke(this);
     }
 
     public void AnimateFlip(float duration = 0.2f)
@@ -220,6 +249,8 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
 
     private IEnumerator FlipCoroutine(float duration)
     {
+        OnCardFlipStarted?.Invoke(this);
+
         // Simple flip: just scale X
         float time = 0f;
         Vector3 startScale = transform.localScale;
@@ -246,6 +277,7 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
             yield return null;
         }
         transform.localScale = startScale;
+        OnCardFlipCompleted?.Invoke(this);
     }
 
 
@@ -278,7 +310,6 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
         // Check if the object we're leaving is a DropZone
         if (other.TryGetComponent(out DropZone zone))
         {
-            Debug.Log($"CardView exited DropZone: {zone.gameObject.name}");
             // It is! Remove it from our list.
             overlappingZones.Remove(zone);
         }
