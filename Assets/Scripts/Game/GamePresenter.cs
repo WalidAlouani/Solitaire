@@ -156,6 +156,9 @@ public class GamePresenter : MonoBehaviour
         // Try auto-move to foundation
         foreach (var foundation in game.Foundations)
         {
+            if (foundation == pile)
+                continue; // Skip same pile
+
             if (game.TryMoveCard(cardView.Model, foundation))
                 return;
         }
@@ -163,6 +166,9 @@ public class GamePresenter : MonoBehaviour
         // Try auto-move to tableau
         foreach (var tableau in game.Tableaus)
         {
+            if (tableau == pile)
+                continue; // Skip same pile
+
             if (game.TryMoveCard(cardView.Model, tableau))
                 return;
         }
@@ -170,10 +176,14 @@ public class GamePresenter : MonoBehaviour
 
     private void HandleCardDroppedOnPiles(CardView cardView, List<PileView> pilesView)
     {
-        bool success = false;
+        var success = false;
+        var currentPile = game.FindPileForCard(cardView.Model);
 
         foreach (var pileView in pilesView)
         {
+            if (pileView.Model == currentPile)
+                continue; // Skip same pile
+
             success = game.TryMoveCard(cardView.Model, pileView.Model);
             if (success)
                 break;
@@ -201,6 +211,22 @@ public class GamePresenter : MonoBehaviour
             return;
 
         game.DrawFromStock();
+    }
+
+    public void HandleUndo() 
+    {
+        if (!_canInteract)
+            return;
+
+        game.Undo();
+    }
+
+    public void HandleRedo() 
+    {
+        if (!_canInteract)
+            return;
+
+        game.Redo();
     }
 
     // --- Event Handler (Listens to MODEL) ---
@@ -251,6 +277,7 @@ public class GamePresenter : MonoBehaviour
     private void HandleGameWon()
     {
         Debug.Log("GAME WON!");
+        SetAllCardsInteraction(false);
         // TODO: Show Win Screen
     }
 }

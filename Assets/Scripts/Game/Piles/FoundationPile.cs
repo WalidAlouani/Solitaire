@@ -35,6 +35,7 @@ public class FoundationPile : CardPile
     {
         // When a card is added to the foundation, it should be face up
         card.SetFaceUp(true);
+        OnCardAddedEvent?.Invoke(card);
     }
 
     public override void OnCardRemoved(Card card)

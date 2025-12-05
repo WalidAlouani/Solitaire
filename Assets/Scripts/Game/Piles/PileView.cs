@@ -20,7 +20,7 @@ public class PileView : MonoBehaviour
     public void ParentToPile(CardView cardView)
     {
         cardView.transform.SetParent(_cardsHolder);
-        cardView.transform.SetAsLastSibling();
+        //cardView.transform.SetAsLastSibling();
     }
 
     /// <summary>

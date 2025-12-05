@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -8,8 +9,19 @@ public abstract class CardPile
     public bool IsEmpty() => cards.Count == 0;
     public int Count => cards.Count;
     public Card Peek() => cards.Count > 0 ? cards.Peek() : null;
-    public Card Pop() => cards.Pop();
-    public void Push(Card card) => cards.Push(card);
+    public Card Pop() 
+    { 
+        var card = cards.Pop();
+        OnCardRemoved(card);
+        return card;
+    }
+
+    public void Push(Card card) 
+    {
+        cards.Push(card);
+        OnCardAdded(card);
+    }
+
     public void Clear() => cards.Clear();
 
     public List<Card> GetCards() => new List<Card>(cards); // Return a copy
@@ -28,8 +40,8 @@ public abstract class CardPile
         }
     }
 
-    // Abstract methods to enforce rules in derived classes
-    // This is the core of the rules engine!
+    public Action<Card> OnCardAddedEvent;
+    public Action<Card> OnCardRemovedEvent;
     public abstract bool CanAddCard(CardPile origin, Card card);
     public abstract bool CanRemoveCard(Card card);
     public abstract void OnCardAdded(Card card);

@@ -36,6 +36,7 @@ public class WastePile : CardPile
     {
         // card in stock should always be face up
         card.SetFaceUp(true);
+        OnCardAddedEvent?.Invoke(card);
     }
 
     public override void OnCardRemoved(Card card)

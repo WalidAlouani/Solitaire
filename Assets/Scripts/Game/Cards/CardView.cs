@@ -32,14 +32,12 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
     private Transform _originalParent;
     private Vector2 _dragOffset;
     private bool _isDragging = false;
-    private bool _canInteract = false;
+    private bool _canInteract = true;
 
     // This must be set by the Presenter on spawn!
     public Transform TopLevelCanvasTransform { get; set; }
 
-    public Action<CardView> OnCardMoveStarted;
     public Action<CardView> OnCardMoveCompleted;
-    public Action<CardView> OnCardFlipStarted;
     public Action<CardView> OnCardFlipCompleted;
 
     void Awake()
@@ -199,8 +197,6 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
 
     private IEnumerator MoveCoroutine(PileView newParent, float duration)
     {
-        OnCardMoveStarted?.Invoke(this);
-
         Vector2 target = new Vector2(0, newParent.GetCardPosition(Model));
 
         // Ensure card is parented to top-level canvas for animation
@@ -223,10 +219,10 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
             _rectTransform.anchoredPosition = Vector2.Lerp(startPos, targetCanvasPos, time / duration);
             yield return null;
         }
-        _rectTransform.anchoredPosition = targetCanvasPos;
 
         // Now parent the card to the destination pile
         newParent.ParentToPile(this);
+        _rectTransform.anchoredPosition = target;
 
         // Re-parent any child cards to the new parent as well
         int childCount = _cardsHolder.childCount;
@@ -249,8 +245,6 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
 
     private IEnumerator FlipCoroutine(float duration)
     {
-        OnCardFlipStarted?.Invoke(this);
-
         // Simple flip: just scale X
         float time = 0f;
         Vector3 startScale = transform.localScale;
@@ -277,6 +271,7 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
             yield return null;
         }
         transform.localScale = startScale;
+
         OnCardFlipCompleted?.Invoke(this);
     }
 
@@ -307,7 +302,7 @@ public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, 
     /// </summary>
     private void OnTriggerExit2D(Collider2D other)
     {
-        // Check if the object we're leaving is a DropZone
+        // Check if the object we hit is a DropZone
         if (other.TryGetComponent(out DropZone zone))
         {
             // It is! Remove it from our list.

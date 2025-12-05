@@ -33,6 +33,7 @@ public class StockPile : CardPile
     {
         // card in stock should always be face down
         card.SetFaceUp(false);
+        OnCardAddedEvent?.Invoke(card);
     }
 
     public override void OnCardRemoved(Card card)

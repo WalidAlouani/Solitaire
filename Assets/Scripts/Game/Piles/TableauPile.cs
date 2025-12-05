@@ -44,8 +44,7 @@ public class TableauPile : CardPile
 
     public override void OnCardAdded(Card card)
     {
-        // When a card is added to the tableau, it should be face up
-        card.SetFaceUp(true);
+        OnCardAddedEvent?.Invoke(card);
     }
 
     public override void OnCardRemoved(Card card)

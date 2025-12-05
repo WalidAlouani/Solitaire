@@ -39,7 +39,8 @@ public class GameTests
         var stockPile = game.Stock;
         var wastePile = game.Waste;
 
-        game.Deal();
+        game.RecycleAndSuffleStock();
+        game.PopulateTableauPiles();
 
         for (int i = 0; i < 24; i++)
         {
@@ -199,5 +200,294 @@ public class GameTests
         }
 
         Assert.AreEqual(1, sourceTableau.Count);
+    }
+
+    [Test]
+    public void Undo_SingleMoveFromTableauToTableau_ReversesMove_Succeeds()
+    {
+        var game = new Game();
+
+        // Setup: Black 7 and Red 6 in different tableaus
+        var black7 = new Card(Suit.Spades, Rank.Seven, true);
+        var red6 = new Card(Suit.Hearts, Rank.Six, true);
+        var t1 = game.Tableaus[0];
+        var t2 = game.Tableaus[1];
+
+        t1.SetCards(new List<Card> { red6 });
+        t2.SetCards(new List<Card> { black7 });
+
+        for (int i = 2; i < game.Tableaus.Count; i++)
+            game.Tableaus[i].SetCards(new List<Card>());
+
+        // Move red 6 onto black 7
+        bool moved = game.TryMoveCard(red6, t2);
+        Assert.IsTrue(moved);
+        Assert.AreEqual(0, t1.Count);
+        Assert.AreEqual(2, t2.Count);
+        Assert.AreEqual(red6, t2.Peek());
+
+        // Undo the move
+        game.Undo();
+
+        // Verify state is reverted
+        Assert.AreEqual(1, t1.Count);
+        Assert.AreEqual(1, t2.Count);
+        Assert.AreEqual(red6, t1.Peek());
+        Assert.AreEqual(black7, t2.Peek());
+    }
+
+    [Test]
+    public void Undo_MoveFromWasteToFoundation_ReversesMove_Succeeds()
+    {
+        var game = new Game();
+
+        var aceSpades = new Card(Suit.Spades, Rank.Ace, true);
+        game.Waste.SetCards(new List<Card> { aceSpades });
+
+        var foundation = game.Foundations[0];
+        foundation.SetCards(new List<Card>());
+
+        // Move Ace to foundation
+        bool moved = game.TryMoveCard(aceSpades, foundation);
+        Assert.IsTrue(moved);
+        Assert.AreEqual(0, game.Waste.Count);
+        Assert.AreEqual(1, foundation.Count);
+
+        // Undo the move
+        game.Undo();
+
+        // Verify state is reverted
+        Assert.AreEqual(1, game.Waste.Count);
+        Assert.AreEqual(0, foundation.Count);
+        Assert.AreEqual(aceSpades, game.Waste.Peek());
+    }
+
+    [Test]
+    public void Redo_AfterUndo_ReexecutesMove_Succeeds()
+    {
+        var game = new Game();
+
+        var black7 = new Card(Suit.Spades, Rank.Seven, true);
+        var red6 = new Card(Suit.Hearts, Rank.Six, true);
+        var t1 = game.Tableaus[0];
+        var t2 = game.Tableaus[1];
+
+        t1.SetCards(new List<Card> { red6 });
+        t2.SetCards(new List<Card> { black7 });
+
+        for (int i = 2; i < game.Tableaus.Count; i++)
+            game.Tableaus[i].SetCards(new List<Card>());
+
+        // Move red 6 onto black 7
+        bool moved = game.TryMoveCard(red6, t2);
+        Assert.IsTrue(moved);
+        Assert.AreEqual(red6, t2.Peek());
+
+        // Undo
+        game.Undo();
+        Assert.AreEqual(red6, t1.Peek());
+
+        // Redo
+        game.Redo();
+        Assert.AreEqual(red6, t2.Peek());
+    }
+
+    [Test]
+    public void UndoMultipleMoves_AllMovesReversedInOrder_Succeeds()
+    {
+        var game = new Game();
+
+        // Setup three tableaus with cards
+        var black7 = new Card(Suit.Spades, Rank.Seven, true);
+        var red6 = new Card(Suit.Hearts, Rank.Six, true);
+        var black5 = new Card(Suit.Clubs, Rank.Five, true);
+
+        var t1 = game.Tableaus[0];
+        var t2 = game.Tableaus[1];
+        var t3 = game.Tableaus[2];
+
+        t1.SetCards(new List<Card> { red6 });
+        t2.SetCards(new List<Card> { black7 });
+        t3.SetCards(new List<Card> { black5 });
+
+        for (int i = 3; i < game.Tableaus.Count; i++)
+            game.Tableaus[i].SetCards(new List<Card>());
+
+        // Move 1: red 6 onto black 7
+        game.TryMoveCard(red6, t2);
+        Assert.AreEqual(2, t2.Count);
+
+        // Move 2: black 5 onto red 6
+        game.TryMoveCard(black5, t2);
+        Assert.AreEqual(3, t2.Count);
+
+        // Undo Move 2
+        game.Undo();
+        Assert.AreEqual(2, t2.Count);
+        Assert.AreEqual(black5, t3.Peek());
+
+        // Undo Move 1
+        game.Undo();
+        Assert.AreEqual(1, t2.Count);
+        Assert.AreEqual(red6, t1.Peek());
+    }
+
+    [Test]
+    public void RedoCleared_AfterNewMove_PreventsRedoOfOldMoves_Succeeds()
+    {
+        var game = new Game();
+
+        var black7 = new Card(Suit.Spades, Rank.Seven, true);
+        var red6 = new Card(Suit.Hearts, Rank.Six, true);
+        var black5 = new Card(Suit.Clubs, Rank.Five, true);
+
+        var t1 = game.Tableaus[0];
+        var t2 = game.Tableaus[1];
+        var t3 = game.Tableaus[2];
+
+        t1.SetCards(new List<Card> { red6 });
+        t2.SetCards(new List<Card> { black7 });
+        t3.SetCards(new List<Card> { black5 });
+
+        for (int i = 3; i < game.Tableaus.Count; i++)
+            game.Tableaus[i].SetCards(new List<Card>());
+
+        // Move red 6 onto black 7
+        game.TryMoveCard(red6, t2);
+        Assert.AreEqual(2, t2.Count);
+
+        // Undo
+        game.Undo();
+        Assert.AreEqual(1, t2.Count);
+
+        // Execute a new move (this should clear redo history)
+        game.TryMoveCard(black5, t1);
+        Assert.AreEqual(2, t1.Count);
+
+        // Try to redo the old move - should not work because redo history was cleared
+        game.Redo();
+        Assert.AreEqual(1, t2.Count); // Should remain unchanged since there's nothing to redo
+    }
+
+    [Test]
+    public void UndoAndRedo_WithCardFlipState_RestoresFlipState_Succeeds()
+    {
+        var game = new Game();
+
+        // Setup: tableau with face-down card on bottom, face-up card on top
+        var faceDownCard = new Card(Suit.Diamonds, Rank.Three, false);
+        var faceUpCard = new Card(Suit.Hearts, Rank.Two, true);
+        var destinationCard = new Card(Suit.Spades, Rank.Three, true);
+
+        var t1 = game.Tableaus[0];
+        var t2 = game.Tableaus[1];
+
+        t1.SetCards(new List<Card> { faceUpCard, faceDownCard });
+        t2.SetCards(new List<Card> { destinationCard });
+
+        for (int i = 2; i < game.Tableaus.Count; i++)
+            game.Tableaus[i].SetCards(new List<Card>());
+
+        // Verify initial state
+        Assert.False(faceDownCard.IsFaceUp);
+        Assert.True(faceUpCard.IsFaceUp);
+
+        // Move the face-up card
+        game.TryMoveCard(faceUpCard, t2);
+        Assert.AreEqual(1, t1.Count);
+        Assert.AreEqual(2, t2.Count);
+
+        // Undo - face-down card should still be face-down
+        game.Undo();
+        Assert.False(faceDownCard.IsFaceUp);
+        Assert.AreEqual(2, t1.Count);
+
+        // Redo - face-down card should still be face-down
+        game.Redo();
+        Assert.True(faceDownCard.IsFaceUp);
+        Assert.AreEqual(1, t1.Count);
+    }
+
+    [Test]
+    public void UndoRedo_MultipleCardsStack_PreservesStackOrder_Succeeds()
+    {
+        var game = new Game();
+
+        // Source tableau: Red 6, Black 5, Red 4 (bottom to top)
+        var red6 = new Card(Suit.Hearts, Rank.Six, true);
+        var black5 = new Card(Suit.Spades, Rank.Five, true);
+        var red4 = new Card(Suit.Diamonds, Rank.Four, true);
+        
+        // Destination: Black 7
+        var black7 = new Card(Suit.Clubs, Rank.Seven, true);
+
+        var t1 = game.Tableaus[0];
+        var t2 = game.Tableaus[1];
+
+        t1.SetCards(new List<Card> { red4, black5, red6 });
+        t2.SetCards(new List<Card> { black7 });
+
+        for (int i = 2; i < game.Tableaus.Count; i++)
+            game.Tableaus[i].SetCards(new List<Card>());
+
+        // Move stack: red6, black5, red4 onto black7
+        game.TryMoveCard(red6, t2);
+        Assert.AreEqual(0, t1.Count);
+        Assert.AreEqual(4, t2.Count);
+
+        var movedStack = t2.GetCards().GetRange(0, 3);
+        Assert.AreEqual(red4, movedStack[0]);
+        Assert.AreEqual(black5, movedStack[1]);
+        Assert.AreEqual(red6, movedStack[2]);
+
+        // Undo
+        game.Undo();
+        Assert.AreEqual(3, t1.Count);
+        Assert.AreEqual(1, t2.Count);
+
+        var restoredStack = t1.GetCards();
+        Assert.AreEqual(red4, restoredStack[0]);
+        Assert.AreEqual(black5, restoredStack[1]);
+        Assert.AreEqual(red6, restoredStack[2]);
+
+        // Redo
+        game.Redo();
+        Assert.AreEqual(0, t1.Count);
+        Assert.AreEqual(4, t2.Count);
+    }
+
+    [Test]
+    public void UndoRedo_DrawFromStock_CyclesWaste_Succeeds()
+    {
+        var game = new Game();
+
+        // Setup stock with 3 face-down cards
+        var card1 = new Card(Suit.Hearts, Rank.Ace, false);
+        var card2 = new Card(Suit.Diamonds, Rank.King, false);
+        var card3 = new Card(Suit.Clubs, Rank.Queen, false);
+
+        game.Stock.SetCards(new List<Card> { card3, card2, card1 });
+        game.Waste.SetCards(new List<Card>());
+
+        // Draw card 3
+        game.DrawFromStock();
+        Assert.AreEqual(2, game.Stock.Count);
+        Assert.AreEqual(1, game.Waste.Count);
+        Assert.True(card3.IsFaceUp);
+
+        // Draw card 2
+        game.DrawFromStock();
+        Assert.AreEqual(1, game.Stock.Count);
+        Assert.AreEqual(2, game.Waste.Count);
+
+        // Undo draw of card 2
+        game.Undo();
+        Assert.AreEqual(2, game.Stock.Count);
+        Assert.AreEqual(1, game.Waste.Count);
+
+        // Redo
+        game.Redo();
+        Assert.AreEqual(1, game.Stock.Count);
+        Assert.AreEqual(2, game.Waste.Count);
     }
 }

@@ -17,6 +17,7 @@ public class Game
     public event Action<Card> OnCardFlipped;
 
     private List<Card> _deck;
+    private CommandManager _commandManager;
     private int cardsPerFoundation => Enum.GetValues(typeof(Rank)).Length;
 
     public Game()
@@ -46,12 +47,37 @@ public class Game
                 OnCardFlipped?.Invoke(card);
             };
         }
-    }
 
-    public void Deal()
-    {
-        RecycleAndSuffleStock();
-        PopulateTableauPiles();
+        foreach (var foundation in Foundations)
+        {
+            foundation.OnCardAddedEvent += (card) =>
+            {
+                OnCardMoved?.Invoke(card, foundation);
+
+                if (CheckWin())
+                    OnGameWon?.Invoke();
+            };
+        }
+
+        foreach (var tableau in Tableaus)
+        {
+            tableau.OnCardAddedEvent += (card) =>
+            {
+                OnCardMoved?.Invoke(card, tableau);
+            };
+        }
+
+        Stock.OnCardAddedEvent += (card) =>
+        {
+            OnCardMoved?.Invoke(card, Stock);
+        };
+
+        Waste.OnCardAddedEvent += (card) =>
+        {
+            OnCardMoved?.Invoke(card, Waste);
+        };
+
+        _commandManager = new CommandManager();
     }
 
     public bool TryMoveCard(Card card, CardPile destination)
@@ -60,7 +86,12 @@ public class Game
 
         if (origin is TableauPile tableauOrigin && destination is TableauPile tableauDestination)
         {
-            return TryMoveStack(card, tableauOrigin, tableauDestination);
+            var stackSize = TryMoveStack(card, tableauOrigin, tableauDestination);
+            if (stackSize <= 0)
+                return false;
+
+            _commandManager.ExecuteCmd(new MoveCommand(tableauOrigin, tableauDestination, stackSize));
+            return true;
         }
 
         if (origin == null || !destination.CanAddCard(origin, card) || !origin.CanRemoveCard(card))
@@ -68,44 +99,21 @@ public class Game
             return false;
         }
 
-        MoveCard(card, destination, origin);
+        _commandManager.ExecuteCmd(new MoveCommand(origin, destination));
 
         return true;
     }
 
-    private void MoveCard(Card card, CardPile destination, CardPile origin)
-    {
-        // Perform the move
-        origin.Pop();
-        destination.Push(card);
-
-        origin.OnCardRemoved(card);
-        destination.OnCardAdded(card);
-
-        OnCardMoved?.Invoke(card, destination);
-
-        // Check for win condition
-        if (CheckWin())
-        {
-            OnGameWon?.Invoke();
-        }
-    }
-
-    public bool TryMoveStack(Card topCard, TableauPile tableauOrigin, TableauPile tableauDestination)
+    public int TryMoveStack(Card topCard, TableauPile tableauOrigin, TableauPile tableauDestination)
     {
         if (!tableauOrigin.TryGetCardStack(topCard, out var cardStack))
-            return false;
+            return 0;
 
         // Check if the destination can accept the bottom card of the stack
         if (!tableauDestination.CanAddCard(tableauOrigin, cardStack[0]))
-            return false;
+            return 0;
 
-        foreach (var card in cardStack)
-        {
-            MoveCard(card, tableauDestination, tableauOrigin);
-        }
-
-        return true;
+        return cardStack.Count;
     }
 
     public void DrawFromStock()
@@ -115,12 +123,7 @@ public class Game
             if (Waste.Count == 0)
                 return;
 
-            var cards = Waste.GetCards();
-
-            foreach (var card in cards)
-            {
-                MoveCard(card, Stock, Waste);
-            }
+            _commandManager.ExecuteCmd(new MoveReverseCommand(Waste, Stock, Waste.Count));
 
             return;
         }
@@ -173,5 +176,17 @@ public class Game
                     card.SetFaceUp(true);
             }
         }
+    }
+
+    public void Undo()
+    {
+        if (_commandManager.CanUndo)
+            _commandManager.Undo();
+    }
+
+    public void Redo()
+    {
+        if (_commandManager.CanRedo)
+            _commandManager.Redo();
     }
 }
