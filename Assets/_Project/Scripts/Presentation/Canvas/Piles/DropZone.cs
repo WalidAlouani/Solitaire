@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Solitaire.Presentation
+namespace Solitaire.Presentation.Canvas
 {
     [RequireComponent(typeof(BoxCollider2D))]
     public class DropZone : MonoBehaviour

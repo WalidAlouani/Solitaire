@@ -1,24 +1,21 @@
 using Solitaire.Presentation;
-using UnityEngine;
 
 namespace Solitaire.Core.StateMachine
 {
     public class DealingState : IGameState
     {
         private readonly GameManager _gameManager;
-        private readonly GamePresenter _gamePresenter;
         private bool _hasDealt;
 
-        public DealingState(GameManager gameManager, GamePresenter gamePresenter)
+        public DealingState(GameManager gameManager)
         {
             _gameManager = gameManager;
-            _gamePresenter = gamePresenter;
         }
 
         public void Enter()
         {
             _hasDealt = false;
-            _gamePresenter.StartGame();
+            _gameManager.GameUI.StartGame();
         }
 
         public void Update()

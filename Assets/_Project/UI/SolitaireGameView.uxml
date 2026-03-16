@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements"
+    xsi="http://www.w3.org/2001/XMLSchema-instance"
+    engine="UnityEngine.UIElements"
+    editor="UnityEditor.UIElements"
+    noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd"
+    editor-extension-mode="False">
+
+    <Style src="SolitaireGameView.uss" />
+
+    <!-- Root container fills entire screen -->
+    <ui:VisualElement name="Root" class="root">
+
+        <!-- Background -->
+        <ui:VisualElement name="Background" class="background" />
+
+        <!-- Safe area container -->
+        <ui:VisualElement name="SafeArea" class="safe-area">
+
+            <!-- Top bar: Undo/Redo buttons -->
+            <ui:VisualElement name="TopBar" class="top-bar">
+                <ui:VisualElement name="TopBarSpacer" class="top-bar-spacer" />
+                <ui:VisualElement name="TopBarButtons" class="top-bar-buttons">
+                    <ui:Button name="BtnUndo" class="action-btn" text="&#x21A9;" />
+                    <ui:Button name="BtnRedo" class="action-btn" text="&#x21AA;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Upper row: Foundations (left) + Stock/Waste (right) -->
+            <ui:VisualElement name="UpperRow" class="upper-row">
+                <ui:VisualElement name="Foundations" class="foundations">
+                    <ui:VisualElement name="Foundation0" class="pile foundation-pile" />
+                    <ui:VisualElement name="Foundation1" class="pile foundation-pile" />
+                    <ui:VisualElement name="Foundation2" class="pile foundation-pile" />
+                    <ui:VisualElement name="Foundation3" class="pile foundation-pile" />
+                </ui:VisualElement>
+                <ui:VisualElement name="StockArea" class="stock-area">
+                    <ui:VisualElement name="Waste" class="pile waste-pile" />
+                    <ui:VisualElement name="Stock" class="pile stock-pile">
+                        <ui:Button name="StockButton" class="stock-click-area" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Tableau row: 7 columns -->
+            <ui:VisualElement name="TableauRow" class="tableau-row">
+                <ui:VisualElement name="Tableau0" class="pile tableau-pile" />
+                <ui:VisualElement name="Tableau1" class="pile tableau-pile" />
+                <ui:VisualElement name="Tableau2" class="pile tableau-pile" />
+                <ui:VisualElement name="Tableau3" class="pile tableau-pile" />
+                <ui:VisualElement name="Tableau4" class="pile tableau-pile" />
+                <ui:VisualElement name="Tableau5" class="pile tableau-pile" />
+                <ui:VisualElement name="Tableau6" class="pile tableau-pile" />
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

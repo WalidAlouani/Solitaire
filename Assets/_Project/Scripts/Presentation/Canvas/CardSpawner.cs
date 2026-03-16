@@ -4,7 +4,7 @@ using Solitaire.Domain.Piles;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Solitaire.Presentation
+namespace Solitaire.Presentation.Canvas
 {
     /// <summary>
     /// Responsible for spawning CardView instances and maintaining model-to-view mappings.

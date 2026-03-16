@@ -1,0 +1,185 @@
+/* ============================================
+   Solitaire Game - UI Toolkit Stylesheet
+   Mobile-first responsive flexbox layout
+   7-column grid for consistent card sizing
+   ============================================ */
+
+.root {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+}
+
+.background {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    background-color: rgb(20, 100, 50);
+}
+
+.safe-area {
+    flex-grow: 1;
+    flex-direction: column;
+    padding: 8px;
+}
+
+/* --- Top Bar --- */
+.top-bar {
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    height: 48px;
+    flex-shrink: 0;
+    padding-right: 8px;
+    margin-bottom: 4px;
+}
+.top-bar-spacer { flex-grow: 1; }
+.top-bar-buttons { flex-direction: row; }
+
+.action-btn {
+    width: 44px; height: 44px;
+    margin-left: 6px;
+    font-size: 22px;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.35);
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.2);
+    -unity-text-align: middle-center;
+}
+.action-btn:hover { background-color: rgba(0, 0, 0, 0.5); }
+.action-btn:active { background-color: rgba(0, 0, 0, 0.65); scale: 0.95 0.95; }
+
+/* --- Upper Row --- */
+.upper-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-shrink: 0;
+    padding-left: 4px;
+    padding-right: 4px;
+    margin-bottom: 6px;
+}
+
+/* Foundations takes 4/7 of width (matching 4 tableau columns) */
+.foundations {
+    flex-direction: row;
+    width: 57%;
+}
+
+/* Stock area takes 2/7 of width (matching 2 tableau columns) */
+.stock-area {
+    flex-direction: row;
+    width: 28%;
+}
+
+/* --- Tableau Row --- */
+.tableau-row {
+    flex-direction: row;
+    flex-grow: 1;
+    justify-content: center;
+    align-items: flex-start;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+/* --- Pile (shared) --- */
+.pile {
+    margin-left: 0.5%;
+    margin-right: 0.5%;
+    border-radius: 6px;
+    border-width: 1.5px;
+    border-color: rgba(255, 255, 255, 0.25);
+    background-color: rgba(0, 0, 0, 0.12);
+    overflow: visible;
+}
+
+/* Foundation/Stock/Waste piles use flex-grow to fill parent evenly */
+.foundation-pile {
+    flex-grow: 1;
+    /* Height set by PileElement aspect ratio callback */
+}
+
+.stock-pile {
+    flex-grow: 1;
+}
+
+.waste-pile {
+    flex-grow: 1;
+}
+
+/* Tableau piles share 7-column space equally */
+.tableau-pile {
+    flex-grow: 1;
+    /* min-height set dynamically by PileElement */
+    overflow: visible;
+}
+
+.stock-click-area {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+}
+
+/* --- Card --- */
+.card {
+    width: 100%;
+    /* Height set by CardElement aspect ratio callback (width * 1.4) */
+    border-radius: 5px;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    position: absolute;
+    left: 0;
+}
+
+.card-front {
+    width: 100%; height: 100%;
+    background-color: white;
+    border-radius: 5px;
+    flex-direction: column;
+    padding: 4px;
+}
+
+.card-back {
+    width: 100%; height: 100%;
+    border-radius: 5px;
+    background-color: rgb(30, 80, 160);
+    border-width: 3px;
+    border-color: white;
+}
+
+.card-back-inner {
+    flex-grow: 1;
+    background-color: rgb(30, 80, 160);
+    border-radius: 2px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.card-rank-label {
+    font-size: 16px;
+    -unity-font-style: bold;
+    -unity-text-align: upper-left;
+    margin-left: 3px; margin-top: 2px;
+}
+
+.card-suit-small {
+    width: 16px; height: 16px;
+    margin-left: 3px; margin-top: 1px;
+}
+
+.card-suit-center {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-suit-center-img {
+    width: 45%; height: 45%;
+}
+
+.card-red { color: rgb(200, 30, 30); }
+.card-black { color: rgb(20, 20, 20); }
+
+.card--dragging { scale: 1.05 1.05; opacity: 0.9; }

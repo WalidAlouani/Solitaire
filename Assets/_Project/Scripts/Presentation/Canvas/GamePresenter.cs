@@ -5,14 +5,14 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Solitaire.Presentation
+namespace Solitaire.Presentation.Canvas
 {
     /// <summary>
     /// Coordinates between the Game model and the visual representation.
     /// Handles input routing and animation triggering.
     /// Card spawning and view mappings are delegated to CardSpawner.
     /// </summary>
-    public class GamePresenter : MonoBehaviour
+    public class GamePresenter : MonoBehaviour, IGameUI
     {
         [Header("View References")]
         [SerializeField] private CardSpawner _cardSpawner;

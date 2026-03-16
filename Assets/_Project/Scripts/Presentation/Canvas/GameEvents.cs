@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Solitaire.Presentation
+namespace Solitaire.Presentation.Canvas
 {
     /// <summary>
     /// Static event bus for view-layer communication.

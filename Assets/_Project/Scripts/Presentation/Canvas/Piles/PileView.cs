@@ -2,7 +2,7 @@ using Solitaire.Domain;
 using Solitaire.Domain.Piles;
 using UnityEngine;
 
-namespace Solitaire.Presentation
+namespace Solitaire.Presentation.Canvas
 {
     [RequireComponent(typeof(RectTransform))]
     public class PileView : MonoBehaviour
@@ -54,10 +54,7 @@ namespace Solitaire.Presentation
         {
             var cards = Model.GetCardsReverse();
             if (!cards.Contains(targetCard))
-            {
-                Debug.LogWarning("PileView.GetCardPosition called for a card not in the pile!");
                 return 0;
-            }
 
             float position = 0;
 

@@ -7,7 +7,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-namespace Solitaire.Presentation
+namespace Solitaire.Presentation.Canvas
 {
     [RequireComponent(typeof(RectTransform), typeof(CanvasGroup))]
     public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
