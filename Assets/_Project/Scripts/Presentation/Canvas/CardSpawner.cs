@@ -73,6 +73,22 @@ namespace Solitaire.Presentation.Canvas
             }
         }
 
+        /// <summary>
+        /// Destroys all spawned CardView GameObjects and clears all mappings.
+        /// Used when restarting the game.
+        /// </summary>
+        public void DestroyAllCards()
+        {
+            foreach (var kvp in _cardViewMap)
+            {
+                if (kvp.Value != null)
+                    Destroy(kvp.Value.gameObject);
+            }
+
+            _cardViewMap.Clear();
+            _pileViewMap.Clear();
+        }
+
         public void Clear()
         {
             _cardViewMap.Clear();

@@ -4,6 +4,7 @@ using Solitaire.Domain.Piles;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace Solitaire.Presentation.UIToolkit
@@ -33,10 +34,21 @@ namespace Solitaire.Presentation.UIToolkit
         [Tooltip("Minimum overlap area (in px squared) between card and pile for a valid drop")]
         [SerializeField] private float _minOverlapArea = 500f;
 
+        [Header("Win Screen")]
+        [SerializeField] private float _winScreenFadeDuration = 0.5f;
+        [SerializeField] private float _winScreenDelayBeforeShow = 0.5f;
+
+        [Header("Scenes")]
+        [SerializeField] private string _mainMenuSceneName = "MainMenu";
+
         // UI references
         private UIDocument _uiDocument;
         private VisualElement _root;
         private VisualElement _dragLayer;
+
+        // Win screen elements
+        private VisualElement _winScreenOverlay;
+        private VisualElement _winScreenPanel;
 
         // Pile elements
         private PileElement[] _foundationPiles = new PileElement[4];
@@ -75,6 +87,8 @@ namespace Solitaire.Presentation.UIToolkit
 
         public void StartGame()
         {
+            UnsubscribeFromGame();
+
             _game = new Game();
 
             SetupUIReferences();
@@ -702,13 +716,213 @@ namespace Solitaire.Presentation.UIToolkit
 
         private void HandleGameWon()
         {
-            Debug.Log("GAME WON!");
             SetAllCardsInteraction(false);
+            ShowWinScreen();
+        }
+
+        // ==================================================================
+        //  WIN SCREEN — programmatic VisualElement overlay
+        // ==================================================================
+
+        public void ShowWinScreen()
+        {
+            if (_winScreenOverlay != null) return;
+
+            BuildWinScreenElements();
+            _root.Add(_winScreenOverlay);
+            StartCoroutine(AnimateWinScreenIn());
+        }
+
+        public void HideWinScreen()
+        {
+            if (_winScreenOverlay != null && _root.Contains(_winScreenOverlay))
+            {
+                _root.Remove(_winScreenOverlay);
+            }
+            _winScreenOverlay = null;
+            _winScreenPanel = null;
+        }
+
+        private void BuildWinScreenElements()
+        {
+            // --- Backdrop (semi-transparent black) ---
+            _winScreenOverlay = new VisualElement();
+            _winScreenOverlay.name = "WinScreenOverlay";
+            _winScreenOverlay.style.position = Position.Absolute;
+            _winScreenOverlay.style.left = 0;
+            _winScreenOverlay.style.top = 0;
+            _winScreenOverlay.style.right = 0;
+            _winScreenOverlay.style.bottom = 0;
+            _winScreenOverlay.style.backgroundColor = new Color(0f, 0f, 0f, 0.6f);
+            _winScreenOverlay.style.alignItems = Align.Center;
+            _winScreenOverlay.style.justifyContent = Justify.Center;
+            _winScreenOverlay.style.opacity = 0f;
+
+            // --- Panel (centered card) ---
+            _winScreenPanel = new VisualElement();
+            _winScreenPanel.name = "WinScreenPanel";
+            _winScreenPanel.style.width = 600;
+            _winScreenPanel.style.paddingTop = 60;
+            _winScreenPanel.style.paddingBottom = 60;
+            _winScreenPanel.style.paddingLeft = 50;
+            _winScreenPanel.style.paddingRight = 50;
+            _winScreenPanel.style.backgroundColor = new Color(0.15f, 0.15f, 0.2f, 1f);
+            _winScreenPanel.style.borderTopLeftRadius = 24;
+            _winScreenPanel.style.borderTopRightRadius = 24;
+            _winScreenPanel.style.borderBottomLeftRadius = 24;
+            _winScreenPanel.style.borderBottomRightRadius = 24;
+            _winScreenPanel.style.alignItems = Align.Center;
+            _winScreenPanel.style.scale = new StyleScale(new Scale(new Vector3(0.85f, 0.85f, 1f)));
+            _winScreenOverlay.Add(_winScreenPanel);
+
+            // --- Title ---
+            var title = new Label("You Win!");
+            title.name = "WinTitle";
+            title.style.fontSize = 72;
+            title.style.color = new Color(1f, 0.84f, 0f, 1f); // Gold
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            title.style.unityTextAlign = TextAnchor.MiddleCenter;
+            title.style.marginBottom = 60;
+            _winScreenPanel.Add(title);
+
+            // --- Buttons Container ---
+            var buttonsContainer = new VisualElement();
+            buttonsContainer.name = "ButtonsContainer";
+            buttonsContainer.style.flexDirection = FlexDirection.Row;
+            buttonsContainer.style.justifyContent = Justify.Center;
+            buttonsContainer.style.width = Length.Percent(100);
+            _winScreenPanel.Add(buttonsContainer);
+
+            // --- Play Again Button ---
+            var playAgainBtn = new Button(HandlePlayAgainClicked);
+            playAgainBtn.name = "BtnPlayAgain";
+            playAgainBtn.text = "Play Again";
+            StyleWinButton(playAgainBtn, new Color(0.2f, 0.7f, 0.3f, 1f));
+            playAgainBtn.style.marginRight = 20;
+            buttonsContainer.Add(playAgainBtn);
+
+            // --- Main Menu Button ---
+            var mainMenuBtn = new Button(HandleMainMenuClicked);
+            mainMenuBtn.name = "BtnMainMenu";
+            mainMenuBtn.text = "Main Menu";
+            StyleWinButton(mainMenuBtn, new Color(0.4f, 0.4f, 0.45f, 1f));
+            mainMenuBtn.style.marginLeft = 20;
+            buttonsContainer.Add(mainMenuBtn);
+        }
+
+        private void StyleWinButton(Button button, Color bgColor)
+        {
+            button.style.fontSize = 36;
+            button.style.color = Color.white;
+            button.style.backgroundColor = bgColor;
+            button.style.paddingTop = 18;
+            button.style.paddingBottom = 18;
+            button.style.paddingLeft = 40;
+            button.style.paddingRight = 40;
+            button.style.borderTopLeftRadius = 12;
+            button.style.borderTopRightRadius = 12;
+            button.style.borderBottomLeftRadius = 12;
+            button.style.borderBottomRightRadius = 12;
+            button.style.borderTopWidth = 0;
+            button.style.borderBottomWidth = 0;
+            button.style.borderLeftWidth = 0;
+            button.style.borderRightWidth = 0;
+            button.style.unityFontStyleAndWeight = FontStyle.Bold;
+        }
+
+        private IEnumerator AnimateWinScreenIn()
+        {
+            yield return new WaitForSeconds(_winScreenDelayBeforeShow);
+
+            float elapsed = 0f;
+            while (elapsed < _winScreenFadeDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / _winScreenFadeDuration);
+                float eased = 1f - Mathf.Pow(1f - t, 3f); // ease-out cubic
+
+                _winScreenOverlay.style.opacity = eased;
+
+                float scale = Mathf.Lerp(0.85f, 1f, eased);
+                _winScreenPanel.style.scale = new StyleScale(new Scale(new Vector3(scale, scale, 1f)));
+
+                yield return null;
+            }
+
+            _winScreenOverlay.style.opacity = 1f;
+            _winScreenPanel.style.scale = new StyleScale(new Scale(Vector3.one));
+        }
+
+        // ==================================================================
+        //  WIN SCREEN BUTTON HANDLERS
+        // ==================================================================
+
+        private void HandlePlayAgainClicked()
+        {
+            RestartGame();
+        }
+
+        private void HandleMainMenuClicked()
+        {
+            UnsubscribeFromGame();
+            SceneManager.LoadScene(_mainMenuSceneName);
+        }
+
+        // ==================================================================
+        //  RESTART GAME — clean up everything and start fresh
+        // ==================================================================
+
+        public void RestartGame()
+        {
+            StopAllCoroutines();
+            HideWinScreen();
+            DestroyAllCards();
+            StartGame();
+        }
+
+        /// <summary>
+        /// Remove all CardElements from the visual tree and clear mappings.
+        /// </summary>
+        private void DestroyAllCards()
+        {
+            foreach (var kvp in _cardMap)
+            {
+                CardElement cardElement = kvp.Value;
+
+                // Unsubscribe events
+                cardElement.OnClicked -= HandleCardClicked;
+                cardElement.OnDragStarted -= HandleDragStarted;
+                cardElement.OnDragging -= HandleDragMove;
+                cardElement.OnDragEnded -= HandleDragEnded;
+
+                // Remove from whatever parent it's in
+                cardElement.RemoveFromHierarchy();
+            }
+
+            _cardMap.Clear();
+            _pileMap.Clear();
+            _draggedCards.Clear();
+            _dragOriginPile = null;
+            _activeAnimations = 0;
+            _canInteract = false;
+
+            // Clear all pile elements' card lists
+            for (int i = 0; i < 4; i++)
+                _foundationPiles[i]?.ClearCards();
+            for (int i = 0; i < 7; i++)
+                _tableauPiles[i]?.ClearCards();
+            _stockPile?.ClearCards();
+            _wastePile?.ClearCards();
+
+            // Remove drag layer so SetupUIReferences creates a fresh one
+            if (_dragLayer != null && _root != null && _root.Contains(_dragLayer))
+                _root.Remove(_dragLayer);
+            _dragLayer = null;
         }
 
         // --- Cleanup ---
 
-        private void OnDisable()
+        private void UnsubscribeFromGame()
         {
             if (_game != null)
             {
@@ -716,6 +930,11 @@ namespace Solitaire.Presentation.UIToolkit
                 _game.OnCardFlipped -= HandleCardFlipped;
                 _game.OnGameWon -= HandleGameWon;
             }
+        }
+
+        private void OnDisable()
+        {
+            UnsubscribeFromGame();
         }
     }
 }

@@ -1,9 +1,11 @@
 using Solitaire.Application;
 using Solitaire.Domain;
 using Solitaire.Domain.Piles;
+using Solitaire.Presentation.Canvas.UI;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Solitaire.Presentation.Canvas
 {
@@ -22,6 +24,12 @@ namespace Solitaire.Presentation.Canvas
         [SerializeField] private List<PileView> _foundationPileViews;
         [SerializeField] private PileView _stockPileView;
         [SerializeField] private PileView _wastePileView;
+
+        [Header("Win Screen")]
+        [SerializeField] private WinScreenPopup _winScreenPopup;
+
+        [Header("Scenes")]
+        [SerializeField] private string _mainMenuSceneName = "MainMenu";
 
         private Game _game;
         private bool _canInteract;
@@ -45,21 +53,56 @@ namespace Solitaire.Presentation.Canvas
             GameEvents.OnCardDragFailed -= HandleCardDragFailed;
             GameEvents.OnStockClicked -= HandleStockClicked;
 
-            if (_game != null)
-            {
-                _game.OnCardMoved -= HandleCardMoved;
-                _game.OnCardFlipped -= HandleCardFlipped;
-                _game.OnGameWon -= HandleGameWon;
-            }
+            UnsubscribeFromGame();
+            UnsubscribeFromWinScreen();
         }
 
-        // --- Game Setup ---
+        // --- IGameUI ---
 
         public void StartGame()
         {
+            UnsubscribeFromGame();
+
+            if (_winScreenPopup != null)
+                _winScreenPopup.Hide();
+
             _game = new Game();
 
-            // Bind model piles to view piles
+            BindPileViews();
+
+            _game.RecycleAndShuffleStock();
+            _cardSpawner.SpawnAllCards(_game, _stockPileView);
+            _game.PopulateTableauPiles();
+
+            StartCoroutine(RefreshAllPileLayouts());
+
+            _game.OnCardMoved += HandleCardMoved;
+            _game.OnCardFlipped += HandleCardFlipped;
+            _game.OnGameWon += HandleGameWon;
+        }
+
+        public void ShowWinScreen()
+        {
+            if (_winScreenPopup == null) return;
+
+            _winScreenPopup.OnPlayAgainClicked += HandlePlayAgainClicked;
+            _winScreenPopup.OnMainMenuClicked += HandleMainMenuClicked;
+            _winScreenPopup.Show();
+        }
+
+        public void RestartGame()
+        {
+            StopAllCoroutines();
+            UnsubscribeFromWinScreen();
+
+            _cardSpawner.DestroyAllCards();
+            StartGame();
+        }
+
+        // --- Pile Binding ---
+
+        private void BindPileViews()
+        {
             for (int i = 0; i < _game.Tableaus.Count; i++)
             {
                 _cardSpawner.RegisterPileMapping(_game.Tableaus[i], _tableauPileViews[i]);
@@ -77,16 +120,6 @@ namespace Solitaire.Presentation.Canvas
 
             _cardSpawner.RegisterPileMapping(_game.Waste, _wastePileView);
             _wastePileView.Initialize(_game.Waste);
-
-            _game.RecycleAndShuffleStock();
-            _cardSpawner.SpawnAllCards(_game, _stockPileView);
-            _game.PopulateTableauPiles();
-
-            StartCoroutine(RefreshAllPileLayouts());
-
-            _game.OnCardMoved += HandleCardMoved;
-            _game.OnCardFlipped += HandleCardFlipped;
-            _game.OnGameWon += HandleGameWon;
         }
 
         private IEnumerator RefreshAllPileLayouts()
@@ -228,8 +261,44 @@ namespace Solitaire.Presentation.Canvas
 
         private void HandleGameWon()
         {
-            Debug.Log("GAME WON!");
             SetAllCardsInteraction(false);
+            ShowWinScreen();
+        }
+
+        // --- Win Screen Handlers ---
+
+        private void HandlePlayAgainClicked()
+        {
+            RestartGame();
+        }
+
+        private void HandleMainMenuClicked()
+        {
+            UnsubscribeFromGame();
+            UnsubscribeFromWinScreen();
+            GameEvents.ClearAllSubscribers();
+            SceneManager.LoadScene(_mainMenuSceneName);
+        }
+
+        // --- Cleanup Helpers ---
+
+        private void UnsubscribeFromGame()
+        {
+            if (_game != null)
+            {
+                _game.OnCardMoved -= HandleCardMoved;
+                _game.OnCardFlipped -= HandleCardFlipped;
+                _game.OnGameWon -= HandleGameWon;
+            }
+        }
+
+        private void UnsubscribeFromWinScreen()
+        {
+            if (_winScreenPopup != null)
+            {
+                _winScreenPopup.OnPlayAgainClicked -= HandlePlayAgainClicked;
+                _winScreenPopup.OnMainMenuClicked -= HandleMainMenuClicked;
+            }
         }
     }
 }
