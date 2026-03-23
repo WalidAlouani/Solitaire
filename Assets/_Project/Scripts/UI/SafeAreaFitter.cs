@@ -6,13 +6,15 @@ namespace Solitaire.UI
     /// Adjusts a RectTransform to fit within the device's safe area,
     /// preventing UI from being hidden behind notches, dynamic islands, or rounded corners.
     /// Attach to a full-screen RectTransform that acts as the root content container.
+    /// 
+    /// Reacts to resolution/orientation changes via OnRectTransformDimensionsChange
+    /// instead of polling every frame in Update.
     /// </summary>
     [RequireComponent(typeof(RectTransform))]
     public class SafeAreaFitter : MonoBehaviour
     {
         private RectTransform _rectTransform;
         private Rect _lastSafeArea;
-        private Vector2Int _lastScreenSize;
 
         private void Awake()
         {
@@ -24,38 +26,45 @@ namespace Solitaire.UI
             ApplySafeArea();
         }
 
-        private void Update()
+        private void OnRectTransformDimensionsChange()
         {
-            if (Screen.safeArea != _lastSafeArea
-                || Screen.width != _lastScreenSize.x
-                || Screen.height != _lastScreenSize.y)
-            {
-                ApplySafeArea();
-            }
+            if (_rectTransform == null) return;
+            ApplySafeArea();
         }
 
         private void ApplySafeArea()
         {
             var safeArea = Screen.safeArea;
+
+            if (safeArea == _lastSafeArea) return;
             _lastSafeArea = safeArea;
-            _lastScreenSize = new Vector2Int(Screen.width, Screen.height);
 
-            if (Screen.width <= 0 || Screen.height <= 0)
-                return;
+            if (Screen.width <= 0 || Screen.height <= 0) return;
 
-            var anchorMin = new Vector2(
+            _rectTransform.anchorMin = new Vector2(
                 safeArea.x / Screen.width,
                 safeArea.y / Screen.height
             );
-            var anchorMax = new Vector2(
+            _rectTransform.anchorMax = new Vector2(
                 (safeArea.x + safeArea.width) / Screen.width,
                 (safeArea.y + safeArea.height) / Screen.height
             );
-
-            _rectTransform.anchorMin = anchorMin;
-            _rectTransform.anchorMax = anchorMax;
             _rectTransform.offsetMin = Vector2.zero;
             _rectTransform.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>
+        /// Returns the current safe area insets in pixels (left, top, right, bottom).
+        /// Useful for UI Toolkit code that needs to apply padding based on the safe area.
+        /// </summary>
+        public static (float left, float top, float right, float bottom) GetSafeAreaInsets()
+        {
+            var safeArea = Screen.safeArea;
+            float left = safeArea.x;
+            float top = Screen.height - (safeArea.y + safeArea.height);
+            float right = Screen.width - (safeArea.x + safeArea.width);
+            float bottom = safeArea.y;
+            return (left, top, right, bottom);
         }
     }
 }
