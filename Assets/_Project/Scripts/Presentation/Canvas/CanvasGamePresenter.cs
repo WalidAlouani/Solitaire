@@ -1,3 +1,4 @@
+using DG.Tweening;
 using Solitaire.Application;
 using Solitaire.Domain;
 using Solitaire.Domain.Piles;
@@ -39,6 +40,12 @@ namespace Solitaire.Presentation.Canvas
         private bool _stateAllowsInteraction;
         private bool _isAutoCompleting;
 
+        // Active deal sequence (for cleanup)
+        private Sequence _dealSequence;
+
+        // Active pile punch tweens keyed by PileView (for cleanup)
+        private readonly Dictionary<PileView, Sequence> _pilePunchTweens = new Dictionary<PileView, Sequence>();
+
         // --- IGameUI Events ---
 
         public event Action OnDealingComplete;
@@ -56,6 +63,14 @@ namespace Solitaire.Presentation.Canvas
             UnsubscribeFromGame();
             UnsubscribeFromWinScreen();
             UnsubscribeAutoCompleteButton();
+        }
+
+        private void OnDestroy()
+        {
+            _dealSequence?.Kill();
+            foreach (var kvp in _pilePunchTweens)
+                kvp.Value?.Kill();
+            _pilePunchTweens.Clear();
         }
 
         // --- IGameUI Implementation ---
@@ -79,7 +94,7 @@ namespace Solitaire.Presentation.Canvas
             _game.OnCardMoved += HandleCardMoved;
             _game.OnCardFlipped += HandleCardFlipped;
 
-            StartCoroutine(DealAnimation());
+            PlayDealAnimation();
         }
 
         public void ShowWinScreen()
@@ -121,6 +136,10 @@ namespace Solitaire.Presentation.Canvas
         public void Cleanup()
         {
             StopAllCoroutines();
+            _dealSequence?.Kill();
+            foreach (var kvp in _pilePunchTweens)
+                kvp.Value?.Kill();
+            _pilePunchTweens.Clear();
             _isAutoCompleting = false;
             _stateAllowsInteraction = false;
 
@@ -181,11 +200,14 @@ namespace Solitaire.Presentation.Canvas
             _wastePileView.Initialize(_game.Waste, _gameSettings.CanvasWasteOffsets.FaceUpOffset, _gameSettings.CanvasWasteOffsets.FaceDownOffset);
         }
 
-        // --- Deal Animation ---
+        // --- Deal Animation (DOTween Sequence) ---
 
-        private IEnumerator DealAnimation()
+        private void PlayDealAnimation()
         {
-            yield return new WaitForSeconds(_gameSettings.DealStartDelay);
+            _dealSequence?.Kill();
+            _dealSequence = DOTween.Sequence();
+
+            _dealSequence.AppendInterval(_gameSettings.DealStartDelay);
 
             foreach (var tableau in _game.Tableaus)
             {
@@ -194,15 +216,20 @@ namespace Solitaire.Presentation.Canvas
 
                 foreach (Card card in cardsInPile)
                 {
-                    yield return new WaitForSeconds(_gameSettings.DealCardDelay);
                     CardView cardView = _cardSpawner.GetCardView(card);
-                    cardView.AnimateMove(pileView, _gameSettings.DealCardDuration);
-                    if (card.IsFaceUp)
-                        cardView.AnimateFlip(_gameSettings.CardFlipDuration);
+                    bool shouldFlip = card.IsFaceUp;
+
+                    _dealSequence.AppendInterval(_gameSettings.DealCardDelay);
+                    _dealSequence.AppendCallback(() =>
+                    {
+                        cardView.AnimateMove(pileView, _gameSettings.DealCardDuration);
+                        if (shouldFlip)
+                            cardView.AnimateFlip(_gameSettings.CardFlipDuration);
+                    });
                 }
             }
 
-            OnDealingComplete?.Invoke();
+            _dealSequence.AppendCallback(() => OnDealingComplete?.Invoke());
         }
 
         // --- View Event Handlers ---
@@ -224,7 +251,12 @@ namespace Solitaire.Presentation.Canvas
             {
                 if (foundation == pile) continue;
                 if (_game.TryMoveCard(cardView.Model, foundation))
+                {
+                    // Punch effect on the foundation pile view
+                    PileView foundationView = _cardSpawner.GetPileView(foundation);
+                    AnimatePilePunch(foundationView);
                     return;
+                }
             }
 
             // Then try auto-move to tableau
@@ -234,6 +266,9 @@ namespace Solitaire.Presentation.Canvas
                 if (_game.TryMoveCard(cardView.Model, tableau))
                     return;
             }
+
+            // No valid move found — shake the card
+            cardView.AnimateShake();
         }
 
         private void HandleCardDroppedOnPiles(CardView cardView, List<PileView> pilesView)
@@ -247,7 +282,13 @@ namespace Solitaire.Presentation.Canvas
             {
                 if (pileView.Model == currentPile) continue;
                 success = _game.TryMoveCard(cardView.Model, pileView.Model);
-                if (success) break;
+                if (success)
+                {
+                    // Punch effect when dropping onto a foundation
+                    if (pileView.Model is FoundationPile)
+                        AnimatePilePunch(pileView);
+                    break;
+                }
             }
 
             if (!success)
@@ -320,6 +361,62 @@ namespace Solitaire.Presentation.Canvas
         {
             _canInteract = interactable;
             _cardSpawner.SetAllCardsInteraction(interactable);
+        }
+
+        // --- Pile Effects ---
+
+        /// <summary>
+        /// Quick punch-scale on a pile's visual children (Image, DottedOutline) only.
+        /// CardsHolder is left untouched so card scales are not affected.
+        /// </summary>
+        private void AnimatePilePunch(PileView pileView)
+        {
+            // Kill any existing punch on this pile
+            if (_pilePunchTweens.TryGetValue(pileView, out Sequence existing))
+            {
+                existing?.Kill();
+                _pilePunchTweens.Remove(pileView);
+            }
+
+            pileView.ResetVisualsScale();
+
+            // Capture for closure
+            PileView capturedPile = pileView;
+            float scale = 1f;
+
+            var punchSeq = DOTween.Sequence();
+
+            punchSeq.Append(
+                DOTween.To(
+                    () => scale,
+                    x =>
+                    {
+                        scale = x;
+                        capturedPile.SetVisualsScale(x);
+                    },
+                    1.12f, 0.1f
+                ).SetEase(Ease.OutQuad)
+            );
+            punchSeq.Append(
+                DOTween.To(
+                    () => scale,
+                    x =>
+                    {
+                        scale = x;
+                        capturedPile.SetVisualsScale(x);
+                    },
+                    1f, 0.15f
+                ).SetEase(Ease.InOutQuad)
+            );
+
+            // OnKill fires on both manual Kill() and natural completion
+            punchSeq.OnKill(() =>
+            {
+                capturedPile.ResetVisualsScale();
+                _pilePunchTweens.Remove(capturedPile);
+            });
+
+            _pilePunchTweens[pileView] = punchSeq;
         }
 
         // --- Auto-Complete ---

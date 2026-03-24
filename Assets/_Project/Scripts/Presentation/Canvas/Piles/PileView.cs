@@ -7,6 +7,7 @@ namespace Solitaire.Presentation.Canvas
     [RequireComponent(typeof(RectTransform))]
     public class PileView : MonoBehaviour
     {
+        [SerializeField] private RectTransform _pileVisual;
         [SerializeField] private RectTransform _cardsHolder;
 
         private float _faceUpOffset;
@@ -68,6 +69,24 @@ namespace Solitaire.Presentation.Canvas
             }
 
             return position;
+        }
+
+        /// <summary>
+        /// Scales only the visual children (Image, DottedOutline) without affecting CardsHolder.
+        /// Used by pile punch animation to avoid scaling cards.
+        /// </summary>
+        public void SetVisualsScale(float scale)
+        {
+            _pileVisual.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        /// <summary>
+        /// Resets all visual children to scale (1,1,1).
+        /// </summary>
+        public void ResetVisualsScale()
+        {
+
+            _pileVisual.localScale = Vector3.one;
         }
     }
 }

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Solitaire.Core.StateMachine
 {
-    public class GameStateManager : MonoBehaviour
+    public class GameStateManager
     {
         private IGameState _currentState;
         private readonly Dictionary<Type, IGameState> _states = new();
@@ -30,7 +30,7 @@ namespace Solitaire.Core.StateMachine
             }
         }
 
-        private void Update()
+        public void Tick()
         {
             _currentState?.Update();
         }

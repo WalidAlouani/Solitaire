@@ -1,6 +1,8 @@
+using DG.Tweening;
+using DG.Tweening.Core;
+using DG.Tweening.Plugins.Options;
 using Solitaire.Domain;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -36,6 +38,11 @@ namespace Solitaire.Presentation.Canvas
         private bool _isDragging;
         private bool _canInteract = false;
 
+        // Active tweens (for cleanup)
+        private Sequence _moveSequence;
+        private Sequence _flipSequence;
+        private Sequence _shakeSequence;
+
         // This must be set by the spawner on creation
         public Transform TopLevelCanvasTransform { get; set; }
 
@@ -47,6 +54,11 @@ namespace Solitaire.Presentation.Canvas
             _rectTransform = GetComponent<RectTransform>();
             _canvasGroup = GetComponent<CanvasGroup>();
             _collider = GetComponent<Collider2D>();
+        }
+
+        private void OnDestroy()
+        {
+            KillActiveTweens();
         }
 
         /// <summary>
@@ -166,11 +178,8 @@ namespace Solitaire.Presentation.Canvas
 
         public void AnimateMove(PileView newParent, float duration = 0.2f)
         {
-            StartCoroutine(MoveCoroutine(newParent, duration));
-        }
+            _moveSequence?.Kill();
 
-        private IEnumerator MoveCoroutine(PileView newParent, float duration)
-        {
             Vector2 target = new Vector2(0, newParent.GetCardPosition(Model));
 
             transform.SetParent(TopLevelCanvasTransform);
@@ -179,62 +188,108 @@ namespace Solitaire.Presentation.Canvas
             Vector3 worldTargetPos = newParentCardsHolder.TransformPoint(new Vector3(target.x, target.y, 0));
             Vector3 canvasSpacePos = TopLevelCanvasTransform.InverseTransformPoint(worldTargetPos);
             Vector2 targetCanvasPos = new Vector2(canvasSpacePos.x, canvasSpacePos.y);
-
             Vector2 startPos = _rectTransform.anchoredPosition;
-            float time = 0f;
 
-            while (time < duration)
+            _moveSequence = DOTween.Sequence();
+
+            float progress = 0f;
+            _moveSequence.Append(
+                DOTween.To(
+                    () => progress,
+                    t =>
+                    {
+                        progress = t;
+                        _rectTransform.anchoredPosition = Vector2.Lerp(startPos, targetCanvasPos, t);
+                    },
+                    1f, duration
+                ).SetEase(Ease.OutQuad)
+            );
+
+            _moveSequence.OnComplete(() =>
             {
-                time += Time.deltaTime;
-                _rectTransform.anchoredPosition = Vector2.Lerp(startPos, targetCanvasPos, time / duration);
-                yield return null;
-            }
+                newParent.ParentToPile(this);
+                _rectTransform.anchoredPosition = target;
 
-            newParent.ParentToPile(this);
-            _rectTransform.anchoredPosition = target;
+                // Re-parent any child cards to the new pile as well
+                int childCount = _cardsHolder.childCount;
+                for (int i = 0; i < childCount; i++)
+                {
+                    var cardView = _cardsHolder.GetChild(0).GetComponent<CardView>();
+                    if (cardView == null) continue;
+                    newParent.ParentToPile(cardView);
+                }
 
-            // Re-parent any child cards to the new pile as well
-            int childCount = _cardsHolder.childCount;
-            for (int i = 0; i < childCount; i++)
-            {
-                var cardView = _cardsHolder.GetChild(0).GetComponent<CardView>();
-                if (cardView == null) continue;
-                newParent.ParentToPile(cardView);
-            }
-
-            OnCardMoveCompleted?.Invoke(this);
+                OnCardMoveCompleted?.Invoke(this);
+            });
         }
 
         public void AnimateFlip(float duration = 0.2f)
         {
-            StartCoroutine(FlipCoroutine(duration));
+            _flipSequence?.Kill();
+
+            float halfDuration = duration / 2f;
+            Vector3 startScale = transform.localScale;
+            float scaleX = startScale.x;
+
+            _flipSequence = DOTween.Sequence();
+            _flipSequence.Append(
+                DOTween.To(
+                    () => scaleX,
+                    x =>
+                    {
+                        scaleX = x;
+                        transform.localScale = new Vector3(x, startScale.y, startScale.z);
+                    },
+                    0f, halfDuration
+                ).SetEase(Ease.InQuad)
+            );
+            _flipSequence.AppendCallback(() => UpdateFaceUpStatus());
+            _flipSequence.Append(
+                DOTween.To(
+                    () => scaleX,
+                    x =>
+                    {
+                        scaleX = x;
+                        transform.localScale = new Vector3(x, startScale.y, startScale.z);
+                    },
+                    startScale.x, halfDuration
+                ).SetEase(Ease.OutQuad)
+            );
+            _flipSequence.OnComplete(() =>
+            {
+                transform.localScale = startScale;
+                OnCardFlipCompleted?.Invoke(this);
+            });
         }
 
-        private IEnumerator FlipCoroutine(float duration)
+        /// <summary>
+        /// Quick horizontal shake when the player clicks a card with no valid move.
+        /// </summary>
+        public void AnimateShake(float duration = 0.3f, float strength = 15f)
         {
-            float time = 0f;
-            Vector3 startScale = transform.localScale;
-            Vector3 halfScale = new Vector3(0, startScale.y, startScale.z);
+            _shakeSequence?.Kill();
 
-            while (time < duration / 2)
-            {
-                time += Time.deltaTime;
-                transform.localScale = Vector3.Lerp(startScale, halfScale, time / (duration / 2));
-                yield return null;
-            }
+            Vector2 origin = _rectTransform.anchoredPosition;
+            float shakeStep = duration / 6f;
 
-            UpdateFaceUpStatus();
+            _shakeSequence = DOTween.Sequence();
 
-            time = 0f;
-            while (time < duration / 2)
-            {
-                time += Time.deltaTime;
-                transform.localScale = Vector3.Lerp(halfScale, startScale, time / (duration / 2));
-                yield return null;
-            }
-            transform.localScale = startScale;
+            float offsetX = 0f;
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, strength, shakeStep).SetEase(Ease.OutQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, -strength, shakeStep).SetEase(Ease.InOutQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, strength * 0.5f, shakeStep).SetEase(Ease.InOutQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, -strength * 0.5f, shakeStep).SetEase(Ease.InOutQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, strength * 0.2f, shakeStep).SetEase(Ease.InOutQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, 0f, shakeStep).SetEase(Ease.InQuad));
 
-            OnCardFlipCompleted?.Invoke(this);
+            _shakeSequence.OnComplete(() => _rectTransform.anchoredPosition = origin);
+        }
+
+        private void KillActiveTweens()
+        {
+            _moveSequence?.Kill();
+            _flipSequence?.Kill();
+            _shakeSequence?.Kill();
         }
 
         // --- Physics Trigger Events ---

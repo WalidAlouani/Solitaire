@@ -21,6 +21,12 @@ namespace Solitaire.Presentation.UIToolkit
         private readonly List<CardElement> _cardElements = new List<CardElement>();
         public IReadOnlyList<CardElement> CardElements => _cardElements;
 
+        /// <summary>
+        /// Visual-only background element used for punch-scale effects.
+        /// Scaling this element does not affect card children.
+        /// </summary>
+        private VisualElement _punchVisual;
+
         public PileElement()
         {
             RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
@@ -68,6 +74,40 @@ namespace Solitaire.Presentation.UIToolkit
                 if (Mathf.Abs(currentH - cardH) > 1f)
                     style.height = cardH;
             }
+        }
+
+        /// <summary>
+        /// Returns the visual-only element used for punch effects.
+        /// Creates it lazily on first access so it only exists where needed.
+        /// </summary>
+        public VisualElement GetOrCreatePunchVisual()
+        {
+            if (_punchVisual != null)
+                return _punchVisual;
+
+            _punchVisual = new VisualElement();
+            _punchVisual.name = "PunchVisual";
+            _punchVisual.pickingMode = PickingMode.Ignore;
+            _punchVisual.style.position = Position.Absolute;
+            _punchVisual.style.left = 0;
+            _punchVisual.style.top = 0;
+            _punchVisual.style.right = 0;
+            _punchVisual.style.bottom = 0;
+            _punchVisual.style.borderTopLeftRadius = style.borderTopLeftRadius;
+            _punchVisual.style.borderTopRightRadius = style.borderTopRightRadius;
+            _punchVisual.style.borderBottomLeftRadius = style.borderBottomLeftRadius;
+            _punchVisual.style.borderBottomRightRadius = style.borderBottomRightRadius;
+            _punchVisual.style.borderTopWidth = 2;
+            _punchVisual.style.borderBottomWidth = 2;
+            _punchVisual.style.borderLeftWidth = 2;
+            _punchVisual.style.borderRightWidth = 2;
+            _punchVisual.style.borderTopColor = new Color(1f, 1f, 1f, 0.3f);
+            _punchVisual.style.borderBottomColor = new Color(1f, 1f, 1f, 0.3f);
+            _punchVisual.style.borderLeftColor = new Color(1f, 1f, 1f, 0.3f);
+            _punchVisual.style.borderRightColor = new Color(1f, 1f, 1f, 0.3f);
+
+            Insert(0, _punchVisual);
+            return _punchVisual;
         }
 
         public void AddCard(CardElement cardElement)

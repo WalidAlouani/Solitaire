@@ -39,6 +39,11 @@ namespace Solitaire.Core
             StateManager.ChangeState<DealingState>();
         }
 
+        private void Update()
+        {
+            StateManager.Tick();
+        }
+
         /// <summary>
         /// Creates a fresh Game instance and shuffles the deck into the stock.
         /// PopulateTableauPiles() is NOT called here — the presenter must call it
@@ -53,7 +58,7 @@ namespace Solitaire.Core
 
         private void RegisterGameStates()
         {
-            StateManager = gameObject.AddComponent<GameStateManager>();
+            StateManager = new GameStateManager();
             StateManager.RegisterState(new DealingState(this));
             StateManager.RegisterState(new PlayingState(this));
             StateManager.RegisterState(new WinState(this));

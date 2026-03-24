@@ -1,12 +1,12 @@
+using DG.Tweening;
 using System;
-using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Solitaire.Presentation.Canvas.UI
 {
     /// <summary>
-    /// Win screen popup with fade-in animation.
+    /// Win screen popup with DOTween fade-in + scale animation.
     /// The GameObject must be set INACTIVE in the scene hierarchy.
     /// Call Show() to reveal with animation, Hide() to dismiss.
     /// </summary>
@@ -25,6 +25,7 @@ namespace Solitaire.Presentation.Canvas.UI
         public event Action OnMainMenuClicked;
 
         private RectTransform _panelTransform;
+        private Sequence _showSequence;
         private bool _initialized;
 
         private void Initialize()
@@ -39,6 +40,8 @@ namespace Solitaire.Presentation.Canvas.UI
 
         private void OnDestroy()
         {
+            _showSequence?.Kill();
+
             if (!_initialized) return;
             _playAgainButton.onClick.RemoveListener(HandlePlayAgain);
             _mainMenuButton.onClick.RemoveListener(HandleMainMenu);
@@ -48,42 +51,51 @@ namespace Solitaire.Presentation.Canvas.UI
         {
             gameObject.SetActive(true);
             Initialize();
-            StartCoroutine(AnimateIn());
+
+            _canvasGroup.alpha = 0f;
+            _canvasGroup.interactable = false;
+            _canvasGroup.blocksRaycasts = false;
+            _panelTransform.localScale = Vector3.one * 0.85f;
+
+            _showSequence?.Kill();
+            _showSequence = DOTween.Sequence();
+
+            float alpha = 0f;
+            float scale = 0.85f;
+
+            _showSequence.AppendInterval(_delayBeforeShow);
+
+            // Fade in
+            _showSequence.Append(
+                DOTween.To(
+                    () => alpha,
+                    x => { alpha = x; _canvasGroup.alpha = x; },
+                    1f, _fadeDuration
+                ).SetEase(Ease.OutCubic)
+            );
+
+            // Scale up (joined with fade)
+            _showSequence.Join(
+                DOTween.To(
+                    () => scale,
+                    x => { scale = x; _panelTransform.localScale = Vector3.one * x; },
+                    1f, _fadeDuration
+                ).SetEase(Ease.OutBack)
+            );
+
+            _showSequence.OnComplete(() =>
+            {
+                _canvasGroup.alpha = 1f;
+                _panelTransform.localScale = Vector3.one;
+                _canvasGroup.interactable = true;
+                _canvasGroup.blocksRaycasts = true;
+            });
         }
 
         public void Hide()
         {
-            StopAllCoroutines();
+            _showSequence?.Kill();
             gameObject.SetActive(false);
-        }
-
-        private IEnumerator AnimateIn()
-        {
-            _canvasGroup.alpha = 0f;
-            _canvasGroup.interactable = false;
-            _canvasGroup.blocksRaycasts = false;
-
-            _panelTransform.localScale = Vector3.one * 0.85f;
-
-            yield return new WaitForSeconds(_delayBeforeShow);
-
-            float elapsed = 0f;
-            while (elapsed < _fadeDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / _fadeDuration);
-                float eased = 1f - Mathf.Pow(1f - t, 3f);
-
-                _canvasGroup.alpha = eased;
-                _panelTransform.localScale = Vector3.Lerp(Vector3.one * 0.85f, Vector3.one, eased);
-
-                yield return null;
-            }
-
-            _canvasGroup.alpha = 1f;
-            _panelTransform.localScale = Vector3.one;
-            _canvasGroup.interactable = true;
-            _canvasGroup.blocksRaycasts = true;
         }
 
         private void HandlePlayAgain()

@@ -1,3 +1,4 @@
+using DG.Tweening;
 using Solitaire.Application;
 using Solitaire.Domain;
 using Solitaire.Domain.Piles;
@@ -12,7 +13,8 @@ namespace Solitaire.Presentation.UIToolkit
     /// <summary>
     /// UI Toolkit implementation of IGameUI.
     /// Manages the UIDocument, spawns CardElements, handles drag/drop,
-    /// and drives animations. Flow decisions are driven by game states.
+    /// and drives animations via DOTween.To for style properties.
+    /// Flow decisions are driven by game states.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public class UIToolkitGamePresenter : MonoBehaviour, IGameUI
@@ -62,8 +64,14 @@ namespace Solitaire.Presentation.UIToolkit
         private PileElement _dragOriginPile;
         private Rect _draggedCardRect;
 
-        // Animation queue
+        // Animation tracking
         private int _activeAnimations;
+
+        // Active tweens for cleanup
+        private readonly List<Tween> _activeTweens = new List<Tween>();
+
+        // Active pile punch tweens per element (for cleanup on overlap)
+        private readonly Dictionary<PileElement, Sequence> _pilePunchTweens = new Dictionary<PileElement, Sequence>();
 
         // --- IGameUI Events ---
 
@@ -82,6 +90,11 @@ namespace Solitaire.Presentation.UIToolkit
         private void OnDisable()
         {
             UnsubscribeFromGame();
+        }
+
+        private void OnDestroy()
+        {
+            KillAllTweens();
         }
 
         // ==================================================================
@@ -112,7 +125,7 @@ namespace Solitaire.Presentation.UIToolkit
 
             BuildWinScreenElements();
             _root.Add(_winScreenOverlay);
-            StartCoroutine(AnimateWinScreenIn());
+            AnimateWinScreenIn();
         }
 
         public void ShowAutoCompleteButton()
@@ -173,6 +186,7 @@ namespace Solitaire.Presentation.UIToolkit
         public void Cleanup()
         {
             StopAllCoroutines();
+            KillAllTweens();
             _isAutoCompleting = false;
             _stateAllowsInteraction = false;
 
@@ -180,6 +194,24 @@ namespace Solitaire.Presentation.UIToolkit
             HideWinScreen();
             HideAutoCompleteButton();
             DestroyAllCards();
+        }
+
+        // ==================================================================
+        //  TWEEN HELPERS
+        // ==================================================================
+
+        private void TrackTween(Tween tween)
+        {
+            _activeTweens.Add(tween);
+            tween.OnKill(() => _activeTweens.Remove(tween));
+        }
+
+        private void KillAllTweens()
+        {
+            for (int i = _activeTweens.Count - 1; i >= 0; i--)
+                _activeTweens[i].Kill();
+            _activeTweens.Clear();
+            _pilePunchTweens.Clear();
         }
 
         // ==================================================================
@@ -325,8 +357,11 @@ namespace Solitaire.Presentation.UIToolkit
                     float cardW = stockBound.width;
                     float cardH = cardW * CardElement.CardAspectRatio;
                     cardElement.SetExplicitSize(cardW, cardH);
-                    cardElement.style.left = stockBound.x;
-                    cardElement.style.top = stockBound.y;
+
+                    float startX = stockBound.x;
+                    float startY = stockBound.y;
+                    cardElement.style.left = startX;
+                    cardElement.style.top = startY;
 
                     Rect tableauBound = _tableauPiles[col].worldBound;
                     float targetY = 0f;
@@ -336,27 +371,40 @@ namespace Solitaire.Presentation.UIToolkit
                             ? _gameSettings.UITKTableauOffsets.FaceUpOffset
                             : _gameSettings.UITKTableauOffsets.FaceDownOffset;
                     }
-                    Vector2 target = new Vector2(tableauBound.x, tableauBound.y + targetY);
-                    Vector2 start = new Vector2(stockBound.x, stockBound.y);
+                    float targetWorldX = tableauBound.x;
+                    float targetWorldY = tableauBound.y + targetY;
 
-                    float elapsed = 0f;
-                    while (elapsed < _gameSettings.DealCardDuration)
-                    {
-                        elapsed += Time.deltaTime;
-                        float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / _gameSettings.DealCardDuration));
-                        cardElement.style.left = Mathf.Lerp(start.x, target.x, t);
-                        cardElement.style.top = Mathf.Lerp(start.y, target.y, t);
-                        yield return null;
-                    }
+                    // Capture for closure
+                    CardElement capturedCard = cardElement;
+                    int capturedCol = col;
+                    bool shouldFlip = card.IsFaceUp;
 
-                    if (_dragLayer.Contains(cardElement))
-                        _dragLayer.Remove(cardElement);
+                    // Tween left and top simultaneously
+                    float progress = 0f;
+                    var moveTween = DOTween.To(
+                        () => progress,
+                        t =>
+                        {
+                            progress = t;
+                            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+                            capturedCard.style.left = Mathf.Lerp(startX, targetWorldX, smoothT);
+                            capturedCard.style.top = Mathf.Lerp(startY, targetWorldY, smoothT);
+                        },
+                        1f,
+                        _gameSettings.DealCardDuration
+                    ).SetEase(Ease.Linear);
+                    TrackTween(moveTween);
 
-                    cardElement.ResetToFlowSize();
-                    _tableauPiles[col].AddCard(cardElement);
+                    yield return moveTween.WaitForCompletion();
 
-                    if (card.IsFaceUp)
-                        cardElement.UpdateFaceUpStatus();
+                    if (_dragLayer.Contains(capturedCard))
+                        _dragLayer.Remove(capturedCard);
+
+                    capturedCard.ResetToFlowSize();
+                    _tableauPiles[capturedCol].AddCard(capturedCard);
+
+                    if (shouldFlip)
+                        capturedCard.UpdateFaceUpStatus();
 
                     yield return new WaitForSeconds(_gameSettings.DealCardDelay);
                 }
@@ -385,7 +433,12 @@ namespace Solitaire.Presentation.UIToolkit
             {
                 if (_game.Foundations[i] == pile) continue;
                 if (_game.TryMoveCard(cardElement.Model, _game.Foundations[i]))
+                {
+                    // Punch effect on foundation
+                    if (_pileMap.TryGetValue(_game.Foundations[i], out PileElement foundationPile))
+                        AnimateUITKPilePunch(foundationPile);
                     return;
+                }
             }
 
             for (int i = 0; i < _game.Tableaus.Count; i++)
@@ -394,6 +447,9 @@ namespace Solitaire.Presentation.UIToolkit
                 if (_game.TryMoveCard(cardElement.Model, _game.Tableaus[i]))
                     return;
             }
+
+            // No valid move — shake the card
+            AnimateUITKShake(cardElement);
         }
 
         // ==================================================================
@@ -470,13 +526,16 @@ namespace Solitaire.Presentation.UIToolkit
                 if (_game.TryMoveCard(cardElement.Model, targetPile.Model))
                 {
                     success = true;
+                    // Punch effect on foundation drop
+                    if (targetPile.Model is FoundationPile)
+                        AnimateUITKPilePunch(targetPile);
                     break;
                 }
             }
 
             if (!success)
             {
-                StartCoroutine(AnimateSnapBack());
+                AnimateSnapBack();
             }
         }
 
@@ -535,65 +594,69 @@ namespace Solitaire.Presentation.UIToolkit
         }
 
         // ==================================================================
-        //  SNAP-BACK ANIMATION
+        //  SNAP-BACK ANIMATION (DOTween)
         // ==================================================================
 
-        private IEnumerator AnimateSnapBack()
+        private void AnimateSnapBack()
         {
             if (_draggedCards.Count == 0 || _dragOriginPile == null)
-                yield break;
+                return;
 
             SetAllCardsInteraction(false);
 
-            var startPositions = new List<Vector2>();
-            var targetPositions = new List<Vector2>();
-
             Rect pileBound = _dragOriginPile.worldBound;
 
-            for (int i = 0; i < _draggedCards.Count; i++)
+            // Capture state before tweening
+            var cardsToSnap = new List<CardElement>(_draggedCards);
+            var originPile = _dragOriginPile;
+            int completed = 0;
+
+            for (int i = 0; i < cardsToSnap.Count; i++)
             {
-                var card = _draggedCards[i];
+                var card = cardsToSnap[i];
 
-                float curX = card.style.left.value.value;
-                float curY = card.style.top.value.value;
-                startPositions.Add(new Vector2(curX, curY));
+                float startX = card.style.left.value.value;
+                float startY = card.style.top.value.value;
+                float targetX = pileBound.x;
+                float targetY = pileBound.y + originPile.GetCardPositionY(card.Model);
 
-                float targetY = pileBound.y + _dragOriginPile.GetCardPositionY(card.Model);
-                targetPositions.Add(new Vector2(pileBound.x, targetY));
-            }
+                // Capture for closure
+                CardElement capturedCard = card;
 
-            float elapsed = 0f;
-            while (elapsed < _gameSettings.SnapBackDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / _gameSettings.SnapBackDuration));
+                float progress = 0f;
+                var snapTween = DOTween.To(
+                    () => progress,
+                    t =>
+                    {
+                        progress = t;
+                        capturedCard.style.left = Mathf.Lerp(startX, targetX, t);
+                        capturedCard.style.top = Mathf.Lerp(startY, targetY, t);
+                    },
+                    1f,
+                    _gameSettings.SnapBackDuration
+                ).SetEase(Ease.OutBack);
 
-                for (int i = 0; i < _draggedCards.Count; i++)
+                snapTween.OnComplete(() =>
                 {
-                    float x = Mathf.Lerp(startPositions[i].x, targetPositions[i].x, t);
-                    float y = Mathf.Lerp(startPositions[i].y, targetPositions[i].y, t);
-                    _draggedCards[i].style.left = x;
-                    _draggedCards[i].style.top = y;
-                }
+                    if (_dragLayer.Contains(capturedCard))
+                        _dragLayer.Remove(capturedCard);
+                    capturedCard.style.position = Position.Absolute;
+                    capturedCard.ResetToFlowSize();
+                    originPile.AddCard(capturedCard);
 
-                yield return null;
-            }
+                    completed++;
+                    if (completed >= cardsToSnap.Count)
+                    {
+                        if (_stateAllowsInteraction && !_isAutoCompleting)
+                            SetAllCardsInteraction(true);
+                    }
+                });
 
-            for (int i = 0; i < _draggedCards.Count; i++)
-            {
-                var card = _draggedCards[i];
-                if (_dragLayer.Contains(card))
-                    _dragLayer.Remove(card);
-                card.style.position = Position.Absolute;
-                card.ResetToFlowSize();
-                _dragOriginPile.AddCard(card);
+                TrackTween(snapTween);
             }
 
             _draggedCards.Clear();
             _dragOriginPile = null;
-
-            if (_stateAllowsInteraction && !_isAutoCompleting)
-                SetAllCardsInteraction(true);
         }
 
         // ==================================================================
@@ -633,10 +696,10 @@ namespace Solitaire.Presentation.UIToolkit
             if (cardElement.ParentPile != null)
                 cardElement.ParentPile.RemoveCard(cardElement);
 
-            StartCoroutine(AnimateMoveToPile(cardElement, targetPileElement, startWorldPos));
+            AnimateMoveToPile(cardElement, targetPileElement, startWorldPos);
         }
 
-        private IEnumerator AnimateMoveToPile(CardElement cardElement, PileElement targetPile, Vector2 startWorldPos)
+        private void AnimateMoveToPile(CardElement cardElement, PileElement targetPile, Vector2 startWorldPos)
         {
             _dragLayer.Add(cardElement);
             cardElement.style.position = Position.Absolute;
@@ -653,40 +716,51 @@ namespace Solitaire.Presentation.UIToolkit
 
             Rect targetPileBound = targetPile.worldBound;
             float targetCardY = targetPile.GetNextCardPositionY();
-            Vector2 targetWorldPos = new Vector2(targetPileBound.x, targetPileBound.y + targetCardY);
+            float targetWorldX = targetPileBound.x;
+            float targetWorldY = targetPileBound.y + targetCardY;
 
-            float elapsed = 0f;
-            while (elapsed < _gameSettings.CardMoveDuration)
+            // Capture for closure
+            CardElement capturedCard = cardElement;
+            PileElement capturedTarget = targetPile;
+
+            float progress = 0f;
+            var moveTween = DOTween.To(
+                () => progress,
+                t =>
+                {
+                    progress = t;
+                    capturedCard.style.left = Mathf.Lerp(startWorldPos.x, targetWorldX, t);
+                    capturedCard.style.top = Mathf.Lerp(startWorldPos.y, targetWorldY, t);
+                },
+                1f,
+                _gameSettings.CardMoveDuration
+            ).SetEase(Ease.OutQuad);
+
+            moveTween.OnComplete(() =>
             {
-                elapsed += Time.deltaTime;
-                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / _gameSettings.CardMoveDuration));
+                capturedCard.style.left = targetWorldX;
+                capturedCard.style.top = targetWorldY;
 
-                cardElement.style.left = Mathf.Lerp(startWorldPos.x, targetWorldPos.x, t);
-                cardElement.style.top = Mathf.Lerp(startWorldPos.y, targetWorldPos.y, t);
+                if (_dragLayer.Contains(capturedCard))
+                    _dragLayer.Remove(capturedCard);
 
-                yield return null;
-            }
+                capturedCard.style.position = Position.Absolute;
+                capturedCard.ResetToFlowSize();
+                capturedTarget.AddCard(capturedCard);
+                capturedCard.UpdateFaceUpStatus();
 
-            cardElement.style.left = targetWorldPos.x;
-            cardElement.style.top = targetWorldPos.y;
+                _activeAnimations--;
+                capturedCard.NotifyMoveCompleted();
 
-            if (_dragLayer.Contains(cardElement))
-                _dragLayer.Remove(cardElement);
+                if (_activeAnimations <= 0)
+                {
+                    _activeAnimations = 0;
+                    if (_stateAllowsInteraction && !_isAutoCompleting)
+                        SetAllCardsInteraction(true);
+                }
+            });
 
-            cardElement.style.position = Position.Absolute;
-            cardElement.ResetToFlowSize();
-            targetPile.AddCard(cardElement);
-            cardElement.UpdateFaceUpStatus();
-
-            _activeAnimations--;
-            cardElement.NotifyMoveCompleted();
-
-            if (_activeAnimations <= 0)
-            {
-                _activeAnimations = 0;
-                if (_stateAllowsInteraction && !_isAutoCompleting)
-                    SetAllCardsInteraction(true);
-            }
+            TrackTween(moveTween);
         }
 
         private void HandleCardFlipped(Card card)
@@ -695,43 +769,142 @@ namespace Solitaire.Presentation.UIToolkit
 
             SetAllCardsInteraction(false);
             _activeAnimations++;
-            StartCoroutine(AnimateFlip(cardElement));
+            AnimateFlip(cardElement);
         }
 
-        private IEnumerator AnimateFlip(CardElement cardElement)
+        private void AnimateFlip(CardElement cardElement)
         {
             float halfDuration = _gameSettings.CardFlipDuration / 2f;
-            float time = 0f;
 
-            while (time < halfDuration)
+            // Capture for closure
+            CardElement capturedCard = cardElement;
+
+            float scaleX = 1f;
+            var seq = DOTween.Sequence();
+
+            // Squeeze to 0
+            seq.Append(
+                DOTween.To(() => scaleX, x =>
+                {
+                    scaleX = x;
+                    capturedCard.style.scale = new StyleScale(new Scale(new Vector3(x, 1f, 1f)));
+                }, 0f, halfDuration).SetEase(Ease.InQuad)
+            );
+
+            // Swap face
+            seq.AppendCallback(() => capturedCard.UpdateFaceUpStatus());
+
+            // Expand back to 1
+            seq.Append(
+                DOTween.To(() => scaleX, x =>
+                {
+                    scaleX = x;
+                    capturedCard.style.scale = new StyleScale(new Scale(new Vector3(x, 1f, 1f)));
+                }, 1f, halfDuration).SetEase(Ease.OutQuad)
+            );
+
+            seq.OnComplete(() =>
             {
-                time += Time.deltaTime;
-                float scaleX = Mathf.Lerp(1f, 0f, time / halfDuration);
-                cardElement.style.scale = new StyleScale(new Scale(new Vector3(scaleX, 1f, 1f)));
-                yield return null;
+                capturedCard.style.scale = new StyleScale(new Scale(Vector3.one));
+                capturedCard.NotifyFlipCompleted();
+
+                _activeAnimations--;
+                if (_activeAnimations <= 0)
+                {
+                    _activeAnimations = 0;
+                    if (_stateAllowsInteraction && !_isAutoCompleting)
+                        SetAllCardsInteraction(true);
+                }
+            });
+
+            TrackTween(seq);
+        }
+
+        // ==================================================================
+        //  UITK EFFECTS
+        // ==================================================================
+
+        /// <summary>
+        /// Horizontal shake for a CardElement when no valid move exists.
+        /// </summary>
+        private void AnimateUITKShake(CardElement cardElement)
+        {
+            float originalLeft = cardElement.style.left.value.value;
+            float strength = 8f;
+            float duration = 0.3f;
+
+            var seq = DOTween.Sequence();
+            float shakeTime = duration / 6f;
+
+            seq.Append(DOTween.To(() => 0f, x => cardElement.style.left = originalLeft + x, strength, shakeTime).SetEase(Ease.OutQuad));
+            seq.Append(DOTween.To(() => strength, x => cardElement.style.left = originalLeft + x, -strength, shakeTime).SetEase(Ease.InOutQuad));
+            seq.Append(DOTween.To(() => -strength, x => cardElement.style.left = originalLeft + x, strength * 0.5f, shakeTime).SetEase(Ease.InOutQuad));
+            seq.Append(DOTween.To(() => strength * 0.5f, x => cardElement.style.left = originalLeft + x, -strength * 0.5f, shakeTime).SetEase(Ease.InOutQuad));
+            seq.Append(DOTween.To(() => -strength * 0.5f, x => cardElement.style.left = originalLeft + x, strength * 0.2f, shakeTime).SetEase(Ease.InOutQuad));
+            seq.Append(DOTween.To(() => strength * 0.2f, x => cardElement.style.left = originalLeft + x, 0f, shakeTime).SetEase(Ease.InQuad));
+
+            seq.OnComplete(() => cardElement.style.left = originalLeft);
+            TrackTween(seq);
+        }
+
+        /// <summary>
+        /// Punch-scale effect on a PileElement's visual overlay only.
+        /// Card children are not affected since we scale a separate VisualElement.
+        /// </summary>
+        private void AnimateUITKPilePunch(PileElement pileElement)
+        {
+            // Kill any existing punch on this pile element
+            if (_pilePunchTweens.TryGetValue(pileElement, out Sequence existing))
+            {
+                existing?.Kill();
+                _pilePunchTweens.Remove(pileElement);
             }
 
-            cardElement.UpdateFaceUpStatus();
+            // Get or create the visual-only overlay element
+            VisualElement punchVisual = pileElement.GetOrCreatePunchVisual();
+            punchVisual.style.scale = new StyleScale(new Scale(Vector3.one));
+            punchVisual.style.opacity = 1f;
 
-            time = 0f;
-            while (time < halfDuration)
+            // Capture for closure
+            VisualElement capturedVisual = punchVisual;
+            PileElement capturedPile = pileElement;
+
+            float scale = 1f;
+            var punchSeq = DOTween.Sequence();
+
+            punchSeq.Append(
+                DOTween.To(() => scale, x =>
+                {
+                    scale = x;
+                    capturedVisual.style.scale = new StyleScale(new Scale(new Vector3(x, x, 1f)));
+                }, 1.12f, 0.1f).SetEase(Ease.OutQuad)
+            );
+            punchSeq.Append(
+                DOTween.To(() => scale, x =>
+                {
+                    scale = x;
+                    capturedVisual.style.scale = new StyleScale(new Scale(new Vector3(x, x, 1f)));
+                }, 1f, 0.15f).SetEase(Ease.InOutQuad)
+            );
+
+            // Fade out the overlay after punch completes
+            punchSeq.Append(
+                DOTween.To(() => 1f, x =>
+                {
+                    capturedVisual.style.opacity = x;
+                }, 0f, 0.1f).SetEase(Ease.InQuad)
+            );
+
+            // OnKill guarantees cleanup
+            punchSeq.OnKill(() =>
             {
-                time += Time.deltaTime;
-                float scaleX = Mathf.Lerp(0f, 1f, time / halfDuration);
-                cardElement.style.scale = new StyleScale(new Scale(new Vector3(scaleX, 1f, 1f)));
-                yield return null;
-            }
+                capturedVisual.style.scale = new StyleScale(new Scale(Vector3.one));
+                capturedVisual.style.opacity = 0f;
+                _pilePunchTweens.Remove(capturedPile);
+            });
 
-            cardElement.style.scale = new StyleScale(new Scale(Vector3.one));
-            cardElement.NotifyFlipCompleted();
-
-            _activeAnimations--;
-            if (_activeAnimations <= 0)
-            {
-                _activeAnimations = 0;
-                if (_stateAllowsInteraction && !_isAutoCompleting)
-                    SetAllCardsInteraction(true);
-            }
+            _pilePunchTweens[pileElement] = punchSeq;
+            TrackTween(punchSeq);
         }
 
         // --- Stock / Undo / Redo ---
@@ -877,27 +1050,33 @@ namespace Solitaire.Presentation.UIToolkit
             button.style.unityFontStyleAndWeight = FontStyle.Bold;
         }
 
-        private IEnumerator AnimateWinScreenIn()
+        private void AnimateWinScreenIn()
         {
-            yield return new WaitForSeconds(_gameSettings.WinScreenShowDelay);
+            float opacity = 0f;
+            float scale = 0.85f;
 
-            float elapsed = 0f;
-            while (elapsed < _gameSettings.WinScreenFadeDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / _gameSettings.WinScreenFadeDuration);
-                float eased = 1f - Mathf.Pow(1f - t, 3f);
+            var seq = DOTween.Sequence();
+            seq.AppendInterval(_gameSettings.WinScreenShowDelay);
 
-                _winScreenOverlay.style.opacity = eased;
+            // Fade overlay
+            seq.Append(
+                DOTween.To(() => opacity, x =>
+                {
+                    opacity = x;
+                    _winScreenOverlay.style.opacity = x;
+                }, 1f, _gameSettings.WinScreenFadeDuration).SetEase(Ease.OutCubic)
+            );
 
-                float scale = Mathf.Lerp(0.85f, 1f, eased);
-                _winScreenPanel.style.scale = new StyleScale(new Scale(new Vector3(scale, scale, 1f)));
+            // Scale panel (joined with fade)
+            seq.Join(
+                DOTween.To(() => scale, x =>
+                {
+                    scale = x;
+                    _winScreenPanel.style.scale = new StyleScale(new Scale(new Vector3(x, x, 1f)));
+                }, 1f, _gameSettings.WinScreenFadeDuration).SetEase(Ease.OutBack)
+            );
 
-                yield return null;
-            }
-
-            _winScreenOverlay.style.opacity = 1f;
-            _winScreenPanel.style.scale = new StyleScale(new Scale(Vector3.one));
+            TrackTween(seq);
         }
 
         // ==================================================================
