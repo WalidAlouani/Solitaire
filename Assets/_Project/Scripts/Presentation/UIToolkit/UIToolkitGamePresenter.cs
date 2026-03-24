@@ -110,6 +110,7 @@ namespace Solitaire.Presentation.UIToolkit
             SetupUIReferences();
             BindPiles();
             SpawnAllCards();
+            _game.PopulateTableauPiles();
 
             _game.OnCardMoved += HandleCardMoved;
             _game.OnCardFlipped += HandleCardFlipped;

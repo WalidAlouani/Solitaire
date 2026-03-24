@@ -40,14 +40,14 @@ namespace Solitaire.Core
         }
 
         /// <summary>
-        /// Creates a fresh Game instance, shuffles the deck, and populates tableaus.
-        /// Called by DealingState at the start of each round.
+        /// Creates a fresh Game instance and shuffles the deck into the stock.
+        /// PopulateTableauPiles() is NOT called here — the presenter must call it
+        /// after spawning card views so the visual tree is ready for the deal animation.
         /// </summary>
         public Game CreateNewGame()
         {
             Game = new Game();
             Game.RecycleAndShuffleStock();
-            Game.PopulateTableauPiles();
             return Game;
         }
 

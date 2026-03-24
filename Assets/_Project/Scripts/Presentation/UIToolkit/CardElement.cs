@@ -22,7 +22,7 @@ namespace Solitaire.Presentation.UIToolkit
         private VisualElement _suitCenter;
 
         // State
-        private bool _canInteract = true;
+        private bool _canInteract = false;
         private bool _isDragging;
         private Vector2 _dragStartPointer;
         private PileElement _parentPile;

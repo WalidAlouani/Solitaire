@@ -74,6 +74,7 @@ namespace Solitaire.Presentation.Canvas
 
             BindPileViews();
             _cardSpawner.SpawnAllCards(_game, _stockPileView);
+            _game.PopulateTableauPiles();
 
             _game.OnCardMoved += HandleCardMoved;
             _game.OnCardFlipped += HandleCardFlipped;

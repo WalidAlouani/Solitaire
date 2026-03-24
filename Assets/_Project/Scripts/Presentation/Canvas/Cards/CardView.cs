@@ -34,7 +34,7 @@ namespace Solitaire.Presentation.Canvas
         private Transform _originalParent;
         private Vector2 _dragOffset;
         private bool _isDragging;
-        private bool _canInteract = true;
+        private bool _canInteract = false;
 
         // This must be set by the spawner on creation
         public Transform TopLevelCanvasTransform { get; set; }
