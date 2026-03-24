@@ -1,11 +1,13 @@
-using Solitaire.Presentation;
-
 namespace Solitaire.Core.StateMachine
 {
+    /// <summary>
+    /// Entry state for each round. Creates a new game model,
+    /// tells the UI to deal cards, and waits for the dealing
+    /// animation to finish before transitioning to PlayingState.
+    /// </summary>
     public class DealingState : IGameState
     {
         private readonly GameManager _gameManager;
-        private bool _hasDealt;
 
         public DealingState(GameManager gameManager)
         {
@@ -14,22 +16,24 @@ namespace Solitaire.Core.StateMachine
 
         public void Enter()
         {
-            _hasDealt = false;
-            _gameManager.GameUI.StartGame();
+            _gameManager.GameUI.Cleanup();
+
+            var game = _gameManager.CreateNewGame();
+
+            _gameManager.GameUI.OnDealingComplete += HandleDealingComplete;
+            _gameManager.GameUI.StartGame(game);
         }
 
-        public void Update()
-        {
-            // Transition once — guard prevents re-entering PlayingState every frame
-            if (!_hasDealt)
-            {
-                _hasDealt = true;
-                _gameManager.StateManager.ChangeState<PlayingState>();
-            }
-        }
+        public void Update() { }
 
         public void Exit()
         {
+            _gameManager.GameUI.OnDealingComplete -= HandleDealingComplete;
+        }
+
+        private void HandleDealingComplete()
+        {
+            _gameManager.StateManager.ChangeState<PlayingState>();
         }
     }
 }

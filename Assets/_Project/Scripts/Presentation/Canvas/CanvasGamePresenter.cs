@@ -2,20 +2,20 @@ using Solitaire.Application;
 using Solitaire.Domain;
 using Solitaire.Domain.Piles;
 using Solitaire.Presentation.Canvas.UI;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Solitaire.Presentation.Canvas
 {
     /// <summary>
-    /// Coordinates between the Game model and the visual representation.
-    /// Handles input routing and animation triggering.
-    /// Card spawning and view mappings are delegated to CardSpawner.
+    /// Canvas/uGUI implementation of IGameUI.
+    /// Handles card animations, drag-and-drop, and visual state.
+    /// Flow decisions (dealing → playing → win) are driven by game states.
     /// </summary>
-    public class GamePresenter : MonoBehaviour, IGameUI
+    public class CanvasGamePresenter : MonoBehaviour, IGameUI
     {
         [Header("View References")]
         [SerializeField] private CardSpawner _cardSpawner;
@@ -33,13 +33,18 @@ namespace Solitaire.Presentation.Canvas
         [SerializeField] private Button _autoCompleteButton;
         [SerializeField] private float _autoCompleteStepDelay = 0.15f;
 
-        [Header("Scenes")]
-        [SerializeField] private string _mainMenuSceneName = "MainMenu";
-
         private Game _game;
         private ViewEventBus _viewEventBus;
         private bool _canInteract;
+        private bool _stateAllowsInteraction;
         private bool _isAutoCompleting;
+
+        // --- IGameUI Events ---
+
+        public event Action OnDealingComplete;
+        public event Action OnPlayAgainRequested;
+        public event Action OnMainMenuRequested;
+        public event Action OnAutoCompleteRequested;
 
         public Game Game => _game;
 
@@ -53,56 +58,35 @@ namespace Solitaire.Presentation.Canvas
             UnsubscribeAutoCompleteButton();
         }
 
-        // --- IGameUI ---
+        // --- IGameUI Implementation ---
 
-        public void StartGame()
+        public void StartGame(Game game)
         {
             UnsubscribeFromViewEventBus();
             UnsubscribeFromGame();
 
-            if (_winScreenPopup != null)
-                _winScreenPopup.Hide();
-
-            HideAutoCompleteButton();
+            _game = game;
             _isAutoCompleting = false;
-
-            _game = new Game();
 
             _viewEventBus = new ViewEventBus();
             _cardSpawner.SetEventBus(_viewEventBus);
             SubscribeToViewEventBus();
 
             BindPileViews();
-
-            _game.RecycleAndShuffleStock();
             _cardSpawner.SpawnAllCards(_game, _stockPileView);
-            _game.PopulateTableauPiles();
-
-            StartCoroutine(RefreshAllPileLayouts());
 
             _game.OnCardMoved += HandleCardMoved;
             _game.OnCardFlipped += HandleCardFlipped;
-            _game.OnGameWon += HandleGameWon;
-            _game.OnAutoCompleteChanged += HandleAutoCompleteChanged;
+
+            StartCoroutine(DealAnimation());
         }
 
         public void ShowWinScreen()
         {
             if (_winScreenPopup == null) return;
-
             _winScreenPopup.OnPlayAgainClicked += HandlePlayAgainClicked;
             _winScreenPopup.OnMainMenuClicked += HandleMainMenuClicked;
             _winScreenPopup.Show();
-        }
-
-        public void RestartGame()
-        {
-            StopAllCoroutines();
-            _isAutoCompleting = false;
-            UnsubscribeFromWinScreen();
-
-            _cardSpawner.DestroyAllCards();
-            StartGame();
         }
 
         public void ShowAutoCompleteButton()
@@ -117,6 +101,40 @@ namespace Solitaire.Presentation.Canvas
             if (_autoCompleteButton == null) return;
             _autoCompleteButton.onClick.RemoveListener(HandleAutoCompleteClicked);
             _autoCompleteButton.gameObject.SetActive(false);
+        }
+
+        public void RunAutoComplete()
+        {
+            _isAutoCompleting = true;
+            SetAllCardsInteraction(false);
+            StartCoroutine(AutoCompleteCoroutine());
+        }
+
+        public void SetInteractable(bool interactable)
+        {
+            _stateAllowsInteraction = interactable;
+            _canInteract = interactable;
+            _cardSpawner.SetAllCardsInteraction(interactable);
+        }
+
+        public void Cleanup()
+        {
+            StopAllCoroutines();
+            _isAutoCompleting = false;
+            _stateAllowsInteraction = false;
+
+            UnsubscribeFromViewEventBus();
+            UnsubscribeFromGame();
+            UnsubscribeFromWinScreen();
+            UnsubscribeAutoCompleteButton();
+
+            if (_winScreenPopup != null)
+                _winScreenPopup.Hide();
+
+            if (_autoCompleteButton != null)
+                _autoCompleteButton.gameObject.SetActive(false);
+
+            _cardSpawner.DestroyAllCards();
         }
 
         // --- View Event Bus ---
@@ -162,7 +180,9 @@ namespace Solitaire.Presentation.Canvas
             _wastePileView.Initialize(_game.Waste);
         }
 
-        private IEnumerator RefreshAllPileLayouts()
+        // --- Deal Animation ---
+
+        private IEnumerator DealAnimation()
         {
             yield return new WaitForSeconds(1f);
 
@@ -181,7 +201,7 @@ namespace Solitaire.Presentation.Canvas
                 }
             }
 
-            SetAllCardsInteraction(true);
+            OnDealingComplete?.Invoke();
         }
 
         // --- View Event Handlers ---
@@ -273,7 +293,7 @@ namespace Solitaire.Presentation.Canvas
         private void OnCardMoveCompleted(CardView cardView)
         {
             cardView.OnCardMoveCompleted -= OnCardMoveCompleted;
-            if (!_isAutoCompleting)
+            if (_stateAllowsInteraction && !_isAutoCompleting)
                 SetAllCardsInteraction(true);
         }
 
@@ -291,7 +311,7 @@ namespace Solitaire.Presentation.Canvas
         private void OnCardFlipCompleted(CardView cardView)
         {
             cardView.OnCardFlipCompleted -= OnCardFlipCompleted;
-            if (!_isAutoCompleting)
+            if (_stateAllowsInteraction && !_isAutoCompleting)
                 SetAllCardsInteraction(true);
         }
 
@@ -301,55 +321,33 @@ namespace Solitaire.Presentation.Canvas
             _cardSpawner.SetAllCardsInteraction(interactable);
         }
 
-        private void HandleGameWon()
-        {
-            SetAllCardsInteraction(false);
-            HideAutoCompleteButton();
-            _isAutoCompleting = false;
-            ShowWinScreen();
-        }
-
         // --- Auto-Complete ---
-
-        private void HandleAutoCompleteChanged(bool available)
-        {
-            if (available && !_isAutoCompleting)
-                ShowAutoCompleteButton();
-            else if (!available)
-                HideAutoCompleteButton();
-        }
 
         private void HandleAutoCompleteClicked()
         {
             if (_isAutoCompleting) return;
-            HideAutoCompleteButton();
-            _isAutoCompleting = true;
-            SetAllCardsInteraction(false);
-            StartCoroutine(RunAutoComplete());
+            OnAutoCompleteRequested?.Invoke();
         }
 
-        private IEnumerator RunAutoComplete()
+        private IEnumerator AutoCompleteCoroutine()
         {
             while (_game.AutoCompleteStep())
             {
                 yield return new WaitForSeconds(_autoCompleteStepDelay);
             }
+            _isAutoCompleting = false;
         }
 
         // --- Win Screen Handlers ---
 
         private void HandlePlayAgainClicked()
         {
-            RestartGame();
+            OnPlayAgainRequested?.Invoke();
         }
 
         private void HandleMainMenuClicked()
         {
-            UnsubscribeFromViewEventBus();
-            UnsubscribeFromGame();
-            UnsubscribeFromWinScreen();
-            UnsubscribeAutoCompleteButton();
-            SceneManager.LoadScene(_mainMenuSceneName);
+            OnMainMenuRequested?.Invoke();
         }
 
         // --- Cleanup Helpers ---
@@ -360,8 +358,6 @@ namespace Solitaire.Presentation.Canvas
             {
                 _game.OnCardMoved -= HandleCardMoved;
                 _game.OnCardFlipped -= HandleCardFlipped;
-                _game.OnGameWon -= HandleGameWon;
-                _game.OnAutoCompleteChanged -= HandleAutoCompleteChanged;
             }
         }
 

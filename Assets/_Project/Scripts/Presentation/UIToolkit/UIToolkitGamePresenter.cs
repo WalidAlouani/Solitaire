@@ -1,21 +1,21 @@
 using Solitaire.Application;
 using Solitaire.Domain;
 using Solitaire.Domain.Piles;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace Solitaire.Presentation.UIToolkit
 {
     /// <summary>
-    /// Main UI Toolkit controller for the Solitaire game.
-    /// Replaces the old uGUI-based GamePresenter + CardSpawner + PileView + DropZone system.
-    /// Manages the UIDocument, spawns CardElements, handles drag/drop, and drives animations.
+    /// UI Toolkit implementation of IGameUI.
+    /// Manages the UIDocument, spawns CardElements, handles drag/drop,
+    /// and drives animations. Flow decisions are driven by game states.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
-    public class SolitaireUIManager : MonoBehaviour, IGameUI
+    public class UIToolkitGamePresenter : MonoBehaviour, IGameUI
     {
         [Header("Stacking Offsets (positive = downward cascade)")]
         [SerializeField] private float _tableauFaceUpOffset = 30f;
@@ -40,9 +40,6 @@ namespace Solitaire.Presentation.UIToolkit
 
         [Header("Auto-Complete")]
         [SerializeField] private float _autoCompleteStepDelay = 0.15f;
-
-        [Header("Scenes")]
-        [SerializeField] private string _mainMenuSceneName = "MainMenu";
 
         // UI references
         private UIDocument _uiDocument;
@@ -70,18 +67,22 @@ namespace Solitaire.Presentation.UIToolkit
         // Game model
         private Game _game;
         private bool _canInteract;
+        private bool _stateAllowsInteraction;
 
         // Drag state
         private List<CardElement> _draggedCards = new List<CardElement>();
         private PileElement _dragOriginPile;
-
-        // Tracked rect of the first dragged card (updated every PointerMove).
-        // We track this ourselves because worldBound isn't refreshed until the
-        // next layout pass, making it stale when PointerUp fires in the same frame.
         private Rect _draggedCardRect;
 
-        // Animation queue: prevents overlapping coroutines from conflicting
+        // Animation queue
         private int _activeAnimations;
+
+        // --- IGameUI Events ---
+
+        public event Action OnDealingComplete;
+        public event Action OnPlayAgainRequested;
+        public event Action OnMainMenuRequested;
+        public event Action OnAutoCompleteRequested;
 
         public Game Game => _game;
 
@@ -90,32 +91,111 @@ namespace Solitaire.Presentation.UIToolkit
             _uiDocument = GetComponent<UIDocument>();
         }
 
-        // --- Public API ---
-
-        public void StartGame()
+        private void OnDisable()
         {
             UnsubscribeFromGame();
-            HideAutoCompleteButton();
-            _isAutoCompleting = false;
+        }
 
-            _game = new Game();
+        // ==================================================================
+        //  IGameUI IMPLEMENTATION
+        // ==================================================================
+
+        public void StartGame(Game game)
+        {
+            UnsubscribeFromGame();
+
+            _game = game;
+            _isAutoCompleting = false;
 
             SetupUIReferences();
             BindPiles();
-
-            _game.RecycleAndShuffleStock();
             SpawnAllCards();
-            _game.PopulateTableauPiles();
 
             _game.OnCardMoved += HandleCardMoved;
             _game.OnCardFlipped += HandleCardFlipped;
-            _game.OnGameWon += HandleGameWon;
-            _game.OnAutoCompleteChanged += HandleAutoCompleteChanged;
 
             StartCoroutine(DealAnimation());
         }
 
-        // --- Setup ---
+        public void ShowWinScreen()
+        {
+            if (_winScreenOverlay != null) return;
+
+            BuildWinScreenElements();
+            _root.Add(_winScreenOverlay);
+            StartCoroutine(AnimateWinScreenIn());
+        }
+
+        public void ShowAutoCompleteButton()
+        {
+            if (_autoCompleteBtn != null) return;
+
+            _autoCompleteBtn = new Button(HandleAutoCompleteClicked);
+            _autoCompleteBtn.name = "BtnAutoComplete";
+            _autoCompleteBtn.text = "Auto Complete";
+            _autoCompleteBtn.style.position = Position.Absolute;
+            _autoCompleteBtn.style.bottom = 40;
+            _autoCompleteBtn.style.alignSelf = Align.Center;
+            _autoCompleteBtn.style.left = Length.Percent(50);
+            _autoCompleteBtn.style.translate = new StyleTranslate(new Translate(Length.Percent(-50), 0));
+            _autoCompleteBtn.style.fontSize = 32;
+            _autoCompleteBtn.style.color = Color.white;
+            _autoCompleteBtn.style.backgroundColor = new Color(0.2f, 0.6f, 0.9f, 1f);
+            _autoCompleteBtn.style.paddingTop = 16;
+            _autoCompleteBtn.style.paddingBottom = 16;
+            _autoCompleteBtn.style.paddingLeft = 40;
+            _autoCompleteBtn.style.paddingRight = 40;
+            _autoCompleteBtn.style.borderTopLeftRadius = 12;
+            _autoCompleteBtn.style.borderTopRightRadius = 12;
+            _autoCompleteBtn.style.borderBottomLeftRadius = 12;
+            _autoCompleteBtn.style.borderBottomRightRadius = 12;
+            _autoCompleteBtn.style.borderTopWidth = 0;
+            _autoCompleteBtn.style.borderBottomWidth = 0;
+            _autoCompleteBtn.style.borderLeftWidth = 0;
+            _autoCompleteBtn.style.borderRightWidth = 0;
+            _autoCompleteBtn.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+            _root.Add(_autoCompleteBtn);
+        }
+
+        public void HideAutoCompleteButton()
+        {
+            if (_autoCompleteBtn == null) return;
+            if (_root != null && _root.Contains(_autoCompleteBtn))
+                _root.Remove(_autoCompleteBtn);
+            _autoCompleteBtn = null;
+        }
+
+        public void RunAutoComplete()
+        {
+            _isAutoCompleting = true;
+            SetAllCardsInteraction(false);
+            StartCoroutine(AutoCompleteCoroutine());
+        }
+
+        public void SetInteractable(bool interactable)
+        {
+            _stateAllowsInteraction = interactable;
+            _canInteract = interactable;
+            foreach (var kvp in _cardMap)
+                kvp.Value.SetInteractable(interactable);
+        }
+
+        public void Cleanup()
+        {
+            StopAllCoroutines();
+            _isAutoCompleting = false;
+            _stateAllowsInteraction = false;
+
+            UnsubscribeFromGame();
+            HideWinScreen();
+            HideAutoCompleteButton();
+            DestroyAllCards();
+        }
+
+        // ==================================================================
+        //  SETUP
+        // ==================================================================
 
         private void SetupUIReferences()
         {
@@ -169,7 +249,6 @@ namespace Solitaire.Presentation.UIToolkit
             pile.style.height = placeholder.style.height;
             pile.style.flexGrow = placeholder.style.flexGrow;
 
-            // Move children (e.g. StockButton) to the new pile
             while (placeholder.childCount > 0)
             {
                 var child = placeholder[0];
@@ -206,7 +285,9 @@ namespace Solitaire.Presentation.UIToolkit
             _pileMap[_game.Waste] = _wastePile;
         }
 
-        // --- Card Spawning ---
+        // ==================================================================
+        //  CARD SPAWNING
+        // ==================================================================
 
         private void SpawnAllCards()
         {
@@ -226,12 +307,11 @@ namespace Solitaire.Presentation.UIToolkit
         }
 
         // ==================================================================
-        //  DEAL ANIMATION — cards fly one-by-one from stock to each tableau
+        //  DEAL ANIMATION
         // ==================================================================
 
         private IEnumerator DealAnimation()
         {
-            // Wait one frame so the layout pass gives us valid worldBounds
             yield return null;
             yield return null;
 
@@ -247,12 +327,8 @@ namespace Solitaire.Presentation.UIToolkit
                     if (!_cardMap.TryGetValue(card, out CardElement cardElement))
                         continue;
 
-                    // Remove from stock's visual list
                     _stockPile.RemoveCard(cardElement);
 
-                    // ------- animate card from stock to target position -------
-
-                    // 1. Move into drag layer at stock pile position
                     _dragLayer.Add(cardElement);
                     cardElement.style.position = Position.Absolute;
 
@@ -262,10 +338,8 @@ namespace Solitaire.Presentation.UIToolkit
                     cardElement.style.left = stockBound.x;
                     cardElement.style.top = stockBound.y;
 
-                    // 2. Calculate target world position in the tableau pile
                     Rect tableauBound = _tableauPiles[col].worldBound;
                     float targetY = 0f;
-                    // Sum offsets for cards already placed in this pile before this one
                     for (int k = 0; k < row; k++)
                     {
                         targetY += cards[k].IsFaceUp
@@ -275,7 +349,6 @@ namespace Solitaire.Presentation.UIToolkit
                     Vector2 target = new Vector2(tableauBound.x, tableauBound.y + targetY);
                     Vector2 start = new Vector2(stockBound.x, stockBound.y);
 
-                    // 3. Lerp
                     float elapsed = 0f;
                     while (elapsed < _dealCardDuration)
                     {
@@ -286,7 +359,6 @@ namespace Solitaire.Presentation.UIToolkit
                         yield return null;
                     }
 
-                    // 4. Reparent into the pile element
                     if (_dragLayer.Contains(cardElement))
                         _dragLayer.Remove(cardElement);
 
@@ -296,15 +368,16 @@ namespace Solitaire.Presentation.UIToolkit
                     if (card.IsFaceUp)
                         cardElement.UpdateFaceUpStatus();
 
-                    // short pause between cards
                     yield return new WaitForSeconds(_dealDelay);
                 }
             }
 
-            SetAllCardsInteraction(true);
+            OnDealingComplete?.Invoke();
         }
 
-        // --- Card Click ---
+        // ==================================================================
+        //  CARD CLICK
+        // ==================================================================
 
         private void HandleCardClicked(CardElement cardElement)
         {
@@ -360,7 +433,6 @@ namespace Solitaire.Presentation.UIToolkit
                 card.style.top = worldPos.y;
             }
 
-            // Initialize tracked rect
             _draggedCardRect = _draggedCards[0].worldBound;
         }
 
@@ -380,7 +452,6 @@ namespace Solitaire.Presentation.UIToolkit
             first.style.left = cardX;
             first.style.top = cardY;
 
-            // Track the first card's rect ourselves (worldBound lags one frame)
             _draggedCardRect = new Rect(cardX, cardY, cardW, cardH);
 
             float offset = _tableauFaceUpOffset;
@@ -395,8 +466,6 @@ namespace Solitaire.Presentation.UIToolkit
         {
             if (_draggedCards.Count == 0) return;
 
-            // Get ALL overlapping piles sorted by overlap area (largest first).
-            // Try each one until a game-legal move succeeds.
             List<PileElement> candidates = FindOverlappingPilesSorted(_draggedCardRect);
             bool success = false;
 
@@ -417,20 +486,14 @@ namespace Solitaire.Presentation.UIToolkit
 
             if (!success)
             {
-                // Animate snap-back to origin pile instead of instant teleport
                 StartCoroutine(AnimateSnapBack());
             }
         }
 
         // ==================================================================
-        //  DROP DETECTION — overlap-based, multi-pile fallback
+        //  DROP DETECTION
         // ==================================================================
 
-        /// <summary>
-        /// Returns ALL piles that overlap with the given card rect, sorted by
-        /// overlap area in descending order (largest overlap first).
-        /// Only includes piles whose overlap exceeds _minOverlapArea.
-        /// </summary>
         private List<PileElement> FindOverlappingPilesSorted(Rect cardRect)
         {
             var candidates = new List<(PileElement pile, float area)>();
@@ -438,14 +501,9 @@ namespace Solitaire.Presentation.UIToolkit
             foreach (var kvp in _pileMap)
             {
                 PileElement pile = kvp.Value;
-
-                // Skip the origin pile
                 if (pile == _dragOriginPile) continue;
 
-                // Get the effective drop zone rect for this pile
                 Rect pileRect = GetEffectiveDropRect(pile);
-
-                // Calculate overlap area
                 float overlapArea = CalculateOverlapArea(cardRect, pileRect);
 
                 if (overlapArea > _minOverlapArea)
@@ -454,7 +512,6 @@ namespace Solitaire.Presentation.UIToolkit
                 }
             }
 
-            // Sort by overlap area descending (largest overlap = highest priority)
             candidates.Sort((a, b) => b.area.CompareTo(a.area));
 
             var result = new List<PileElement>(candidates.Count);
@@ -464,18 +521,10 @@ namespace Solitaire.Presentation.UIToolkit
             return result;
         }
 
-        /// <summary>
-        /// Returns the effective drop target rectangle for a pile.
-        /// For tableau piles, this is the union of the pile's bounds and all
-        /// its visible cards (which extend below the pile element itself due
-        /// to absolute positioning with overflow: visible).
-        /// For other piles, it's just the pile's worldBound.
-        /// </summary>
         private Rect GetEffectiveDropRect(PileElement pile)
         {
             Rect pileRect = pile.worldBound;
 
-            // For tableau piles, expand to cover all stacked cards
             if (pile.Model is TableauPile && pile.CardElements.Count > 0)
             {
                 var lastCard = pile.CardElements[pile.CardElements.Count - 1];
@@ -488,10 +537,6 @@ namespace Solitaire.Presentation.UIToolkit
             return pileRect;
         }
 
-        /// <summary>
-        /// Calculates the area of intersection between two rectangles.
-        /// Returns 0 if they don't overlap.
-        /// </summary>
         private float CalculateOverlapArea(Rect a, Rect b)
         {
             float xOverlap = Mathf.Max(0, Mathf.Min(a.xMax, b.xMax) - Mathf.Max(a.xMin, b.xMin));
@@ -500,7 +545,7 @@ namespace Solitaire.Presentation.UIToolkit
         }
 
         // ==================================================================
-        //  SNAP-BACK ANIMATION (failed drop)
+        //  SNAP-BACK ANIMATION
         // ==================================================================
 
         private IEnumerator AnimateSnapBack()
@@ -556,11 +601,13 @@ namespace Solitaire.Presentation.UIToolkit
 
             _draggedCards.Clear();
             _dragOriginPile = null;
-            SetAllCardsInteraction(true);
+
+            if (_stateAllowsInteraction && !_isAutoCompleting)
+                SetAllCardsInteraction(true);
         }
 
         // ==================================================================
-        //  MODEL EVENT HANDLERS — card moved / flipped
+        //  MODEL EVENT HANDLERS
         // ==================================================================
 
         private void HandleCardMoved(Card card, CardPile newPile)
@@ -647,7 +694,7 @@ namespace Solitaire.Presentation.UIToolkit
             if (_activeAnimations <= 0)
             {
                 _activeAnimations = 0;
-                if (!_isAutoCompleting)
+                if (_stateAllowsInteraction && !_isAutoCompleting)
                     SetAllCardsInteraction(true);
             }
         }
@@ -692,7 +739,7 @@ namespace Solitaire.Presentation.UIToolkit
             if (_activeAnimations <= 0)
             {
                 _activeAnimations = 0;
-                if (!_isAutoCompleting)
+                if (_stateAllowsInteraction && !_isAutoCompleting)
                     SetAllCardsInteraction(true);
             }
         }
@@ -726,99 +773,32 @@ namespace Solitaire.Presentation.UIToolkit
                 kvp.Value.SetInteractable(interactable);
         }
 
-        private void HandleGameWon()
-        {
-            SetAllCardsInteraction(false);
-            HideAutoCompleteButton();
-            _isAutoCompleting = false;
-            ShowWinScreen();
-        }
-
         // ==================================================================
-        //  AUTO-COMPLETE — programmatic button at bottom of screen
+        //  AUTO-COMPLETE
         // ==================================================================
-
-        public void ShowAutoCompleteButton()
-        {
-            if (_autoCompleteBtn != null) return;
-
-            _autoCompleteBtn = new Button(HandleAutoCompleteClicked);
-            _autoCompleteBtn.name = "BtnAutoComplete";
-            _autoCompleteBtn.text = "Auto Complete";
-            _autoCompleteBtn.style.position = Position.Absolute;
-            _autoCompleteBtn.style.bottom = 40;
-            _autoCompleteBtn.style.alignSelf = Align.Center;
-            _autoCompleteBtn.style.left = Length.Percent(50);
-            _autoCompleteBtn.style.translate = new StyleTranslate(new Translate(Length.Percent(-50), 0));
-            _autoCompleteBtn.style.fontSize = 32;
-            _autoCompleteBtn.style.color = Color.white;
-            _autoCompleteBtn.style.backgroundColor = new Color(0.2f, 0.6f, 0.9f, 1f);
-            _autoCompleteBtn.style.paddingTop = 16;
-            _autoCompleteBtn.style.paddingBottom = 16;
-            _autoCompleteBtn.style.paddingLeft = 40;
-            _autoCompleteBtn.style.paddingRight = 40;
-            _autoCompleteBtn.style.borderTopLeftRadius = 12;
-            _autoCompleteBtn.style.borderTopRightRadius = 12;
-            _autoCompleteBtn.style.borderBottomLeftRadius = 12;
-            _autoCompleteBtn.style.borderBottomRightRadius = 12;
-            _autoCompleteBtn.style.borderTopWidth = 0;
-            _autoCompleteBtn.style.borderBottomWidth = 0;
-            _autoCompleteBtn.style.borderLeftWidth = 0;
-            _autoCompleteBtn.style.borderRightWidth = 0;
-            _autoCompleteBtn.style.unityFontStyleAndWeight = FontStyle.Bold;
-
-            _root.Add(_autoCompleteBtn);
-        }
-
-        public void HideAutoCompleteButton()
-        {
-            if (_autoCompleteBtn == null) return;
-            if (_root != null && _root.Contains(_autoCompleteBtn))
-                _root.Remove(_autoCompleteBtn);
-            _autoCompleteBtn = null;
-        }
-
-        private void HandleAutoCompleteChanged(bool available)
-        {
-            if (available && !_isAutoCompleting)
-                ShowAutoCompleteButton();
-            else if (!available)
-                HideAutoCompleteButton();
-        }
 
         private void HandleAutoCompleteClicked()
         {
             if (_isAutoCompleting) return;
-            HideAutoCompleteButton();
-            _isAutoCompleting = true;
-            SetAllCardsInteraction(false);
-            StartCoroutine(RunAutoComplete());
+            OnAutoCompleteRequested?.Invoke();
         }
 
-        private IEnumerator RunAutoComplete()
+        private IEnumerator AutoCompleteCoroutine()
         {
             while (_game.AutoCompleteStep())
             {
                 yield return new WaitForSeconds(_autoCompleteStepDelay);
             }
+            _isAutoCompleting = false;
         }
 
         // ==================================================================
-        //  WIN SCREEN — programmatic VisualElement overlay
+        //  WIN SCREEN
         // ==================================================================
 
-        public void ShowWinScreen()
+        private void HideWinScreen()
         {
-            if (_winScreenOverlay != null) return;
-
-            BuildWinScreenElements();
-            _root.Add(_winScreenOverlay);
-            StartCoroutine(AnimateWinScreenIn());
-        }
-
-        public void HideWinScreen()
-        {
-            if (_winScreenOverlay != null && _root.Contains(_winScreenOverlay))
+            if (_winScreenOverlay != null && _root != null && _root.Contains(_winScreenOverlay))
             {
                 _root.Remove(_winScreenOverlay);
             }
@@ -828,7 +808,6 @@ namespace Solitaire.Presentation.UIToolkit
 
         private void BuildWinScreenElements()
         {
-            // --- Backdrop (semi-transparent black) ---
             _winScreenOverlay = new VisualElement();
             _winScreenOverlay.name = "WinScreenOverlay";
             _winScreenOverlay.style.position = Position.Absolute;
@@ -841,7 +820,6 @@ namespace Solitaire.Presentation.UIToolkit
             _winScreenOverlay.style.justifyContent = Justify.Center;
             _winScreenOverlay.style.opacity = 0f;
 
-            // --- Panel (centered card) ---
             _winScreenPanel = new VisualElement();
             _winScreenPanel.name = "WinScreenPanel";
             _winScreenPanel.style.width = 600;
@@ -858,17 +836,15 @@ namespace Solitaire.Presentation.UIToolkit
             _winScreenPanel.style.scale = new StyleScale(new Scale(new Vector3(0.85f, 0.85f, 1f)));
             _winScreenOverlay.Add(_winScreenPanel);
 
-            // --- Title ---
             var title = new Label("You Win!");
             title.name = "WinTitle";
             title.style.fontSize = 72;
-            title.style.color = new Color(1f, 0.84f, 0f, 1f); // Gold
+            title.style.color = new Color(1f, 0.84f, 0f, 1f);
             title.style.unityFontStyleAndWeight = FontStyle.Bold;
             title.style.unityTextAlign = TextAnchor.MiddleCenter;
             title.style.marginBottom = 60;
             _winScreenPanel.Add(title);
 
-            // --- Buttons Container ---
             var buttonsContainer = new VisualElement();
             buttonsContainer.name = "ButtonsContainer";
             buttonsContainer.style.flexDirection = FlexDirection.Row;
@@ -876,7 +852,6 @@ namespace Solitaire.Presentation.UIToolkit
             buttonsContainer.style.width = Length.Percent(100);
             _winScreenPanel.Add(buttonsContainer);
 
-            // --- Play Again Button ---
             var playAgainBtn = new Button(HandlePlayAgainClicked);
             playAgainBtn.name = "BtnPlayAgain";
             playAgainBtn.text = "Play Again";
@@ -884,7 +859,6 @@ namespace Solitaire.Presentation.UIToolkit
             playAgainBtn.style.marginRight = 20;
             buttonsContainer.Add(playAgainBtn);
 
-            // --- Main Menu Button ---
             var mainMenuBtn = new Button(HandleMainMenuClicked);
             mainMenuBtn.name = "BtnMainMenu";
             mainMenuBtn.text = "Main Menu";
@@ -922,7 +896,7 @@ namespace Solitaire.Presentation.UIToolkit
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / _winScreenFadeDuration);
-                float eased = 1f - Mathf.Pow(1f - t, 3f); // ease-out cubic
+                float eased = 1f - Mathf.Pow(1f - t, 3f);
 
                 _winScreenOverlay.style.opacity = eased;
 
@@ -942,45 +916,29 @@ namespace Solitaire.Presentation.UIToolkit
 
         private void HandlePlayAgainClicked()
         {
-            RestartGame();
+            OnPlayAgainRequested?.Invoke();
         }
 
         private void HandleMainMenuClicked()
         {
-            UnsubscribeFromGame();
-            SceneManager.LoadScene(_mainMenuSceneName);
+            OnMainMenuRequested?.Invoke();
         }
 
         // ==================================================================
-        //  RESTART GAME — clean up everything and start fresh
+        //  CARD CLEANUP
         // ==================================================================
 
-        public void RestartGame()
-        {
-            StopAllCoroutines();
-            _isAutoCompleting = false;
-            HideWinScreen();
-            HideAutoCompleteButton();
-            DestroyAllCards();
-            StartGame();
-        }
-
-        /// <summary>
-        /// Remove all CardElements from the visual tree and clear mappings.
-        /// </summary>
         private void DestroyAllCards()
         {
             foreach (var kvp in _cardMap)
             {
                 CardElement cardElement = kvp.Value;
 
-                // Unsubscribe events
                 cardElement.OnClicked -= HandleCardClicked;
                 cardElement.OnDragStarted -= HandleDragStarted;
                 cardElement.OnDragging -= HandleDragMove;
                 cardElement.OnDragEnded -= HandleDragEnded;
 
-                // Remove from whatever parent it's in
                 cardElement.RemoveFromHierarchy();
             }
 
@@ -991,7 +949,6 @@ namespace Solitaire.Presentation.UIToolkit
             _activeAnimations = 0;
             _canInteract = false;
 
-            // Clear all pile elements' card lists
             for (int i = 0; i < 4; i++)
                 _foundationPiles[i]?.ClearCards();
             for (int i = 0; i < 7; i++)
@@ -999,7 +956,6 @@ namespace Solitaire.Presentation.UIToolkit
             _stockPile?.ClearCards();
             _wastePile?.ClearCards();
 
-            // Remove drag layer so SetupUIReferences creates a fresh one
             if (_dragLayer != null && _root != null && _root.Contains(_dragLayer))
                 _root.Remove(_dragLayer);
             _dragLayer = null;
@@ -1013,14 +969,7 @@ namespace Solitaire.Presentation.UIToolkit
             {
                 _game.OnCardMoved -= HandleCardMoved;
                 _game.OnCardFlipped -= HandleCardFlipped;
-                _game.OnGameWon -= HandleGameWon;
-                _game.OnAutoCompleteChanged -= HandleAutoCompleteChanged;
             }
-        }
-
-        private void OnDisable()
-        {
-            UnsubscribeFromGame();
         }
     }
 }
