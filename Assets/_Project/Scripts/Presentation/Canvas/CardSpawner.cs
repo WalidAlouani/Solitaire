@@ -18,8 +18,15 @@ namespace Solitaire.Presentation.Canvas
         private readonly Dictionary<Card, CardView> _cardViewMap = new Dictionary<Card, CardView>();
         private readonly Dictionary<CardPile, PileView> _pileViewMap = new Dictionary<CardPile, PileView>();
 
+        private ViewEventBus _eventBus;
+
         public IReadOnlyDictionary<Card, CardView> CardViewMap => _cardViewMap;
         public IReadOnlyDictionary<CardPile, PileView> PileViewMap => _pileViewMap;
+
+        public void SetEventBus(ViewEventBus eventBus)
+        {
+            _eventBus = eventBus;
+        }
 
         public void RegisterPileMapping(CardPile model, PileView view)
         {
@@ -31,6 +38,7 @@ namespace Solitaire.Presentation.Canvas
             CardView cardView = Instantiate(_cardPrefab, pileView.CardsHolder.transform);
 
             cardView.Initialize(cardModel);
+            cardView.SetEventBus(_eventBus);
             cardView.TopLevelCanvasTransform = _topLevelCanvas;
 
             _cardViewMap[cardModel] = cardView;

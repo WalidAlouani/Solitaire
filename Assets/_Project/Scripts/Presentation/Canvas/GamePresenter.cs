@@ -37,6 +37,7 @@ namespace Solitaire.Presentation.Canvas
         [SerializeField] private string _mainMenuSceneName = "MainMenu";
 
         private Game _game;
+        private ViewEventBus _viewEventBus;
         private bool _canInteract;
         private bool _isAutoCompleting;
 
@@ -44,21 +45,9 @@ namespace Solitaire.Presentation.Canvas
 
         // --- Lifecycle ---
 
-        private void OnEnable()
-        {
-            GameEvents.OnCardClicked += HandleCardClicked;
-            GameEvents.OnCardDroppedOnPiles += HandleCardDroppedOnPiles;
-            GameEvents.OnCardDragFailed += HandleCardDragFailed;
-            GameEvents.OnStockClicked += HandleStockClicked;
-        }
-
         private void OnDisable()
         {
-            GameEvents.OnCardClicked -= HandleCardClicked;
-            GameEvents.OnCardDroppedOnPiles -= HandleCardDroppedOnPiles;
-            GameEvents.OnCardDragFailed -= HandleCardDragFailed;
-            GameEvents.OnStockClicked -= HandleStockClicked;
-
+            UnsubscribeFromViewEventBus();
             UnsubscribeFromGame();
             UnsubscribeFromWinScreen();
             UnsubscribeAutoCompleteButton();
@@ -68,6 +57,7 @@ namespace Solitaire.Presentation.Canvas
 
         public void StartGame()
         {
+            UnsubscribeFromViewEventBus();
             UnsubscribeFromGame();
 
             if (_winScreenPopup != null)
@@ -77,6 +67,10 @@ namespace Solitaire.Presentation.Canvas
             _isAutoCompleting = false;
 
             _game = new Game();
+
+            _viewEventBus = new ViewEventBus();
+            _cardSpawner.SetEventBus(_viewEventBus);
+            SubscribeToViewEventBus();
 
             BindPileViews();
 
@@ -123,6 +117,26 @@ namespace Solitaire.Presentation.Canvas
             if (_autoCompleteButton == null) return;
             _autoCompleteButton.onClick.RemoveListener(HandleAutoCompleteClicked);
             _autoCompleteButton.gameObject.SetActive(false);
+        }
+
+        // --- View Event Bus ---
+
+        private void SubscribeToViewEventBus()
+        {
+            if (_viewEventBus == null) return;
+            _viewEventBus.OnCardClicked += HandleCardClicked;
+            _viewEventBus.OnCardDroppedOnPiles += HandleCardDroppedOnPiles;
+            _viewEventBus.OnCardDragFailed += HandleCardDragFailed;
+            _viewEventBus.OnStockClicked += HandleStockClicked;
+        }
+
+        private void UnsubscribeFromViewEventBus()
+        {
+            if (_viewEventBus == null) return;
+            _viewEventBus.OnCardClicked -= HandleCardClicked;
+            _viewEventBus.OnCardDroppedOnPiles -= HandleCardDroppedOnPiles;
+            _viewEventBus.OnCardDragFailed -= HandleCardDragFailed;
+            _viewEventBus.OnStockClicked -= HandleStockClicked;
         }
 
         // --- Pile Binding ---
@@ -331,10 +345,10 @@ namespace Solitaire.Presentation.Canvas
 
         private void HandleMainMenuClicked()
         {
+            UnsubscribeFromViewEventBus();
             UnsubscribeFromGame();
             UnsubscribeFromWinScreen();
             UnsubscribeAutoCompleteButton();
-            GameEvents.ClearAllSubscribers();
             SceneManager.LoadScene(_mainMenuSceneName);
         }
 

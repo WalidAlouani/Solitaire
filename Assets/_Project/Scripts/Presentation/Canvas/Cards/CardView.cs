@@ -27,6 +27,9 @@ namespace Solitaire.Presentation.Canvas
         private CanvasGroup _canvasGroup;
         private Collider2D _collider;
 
+        // Injected event bus (replaces static GameEvents)
+        private ViewEventBus _eventBus;
+
         // State
         private Transform _originalParent;
         private Vector2 _dragOffset;
@@ -44,6 +47,15 @@ namespace Solitaire.Presentation.Canvas
             _rectTransform = GetComponent<RectTransform>();
             _canvasGroup = GetComponent<CanvasGroup>();
             _collider = GetComponent<Collider2D>();
+        }
+
+        /// <summary>
+        /// Injects the instance-based event bus used for view → presenter communication.
+        /// Must be called by CardSpawner immediately after instantiation.
+        /// </summary>
+        public void SetEventBus(ViewEventBus eventBus)
+        {
+            _eventBus = eventBus;
         }
 
         public void Initialize(Card model)
@@ -102,7 +114,7 @@ namespace Solitaire.Presentation.Canvas
                 return;
             }
 
-            GameEvents.RaiseCardClicked(this);
+            _eventBus.RaiseCardClicked(this);
         }
 
         public void OnBeginDrag(PointerEventData eventData)
@@ -111,7 +123,6 @@ namespace Solitaire.Presentation.Canvas
             if (!Model.IsFaceUp) return;
 
             _isDragging = true;
-            GameEvents.WasDropSuccessfulThisFrame = false;
 
             _originalParent = transform.parent;
 
@@ -164,7 +175,7 @@ namespace Solitaire.Presentation.Canvas
             for (int i = 0; i < _overlappingZones.Count; i++)
                 piles.Add(_overlappingZones[i].PileView);
 
-            GameEvents.RaiseCardDroppedOnPiles(this, piles);
+            _eventBus.RaiseCardDroppedOnPiles(this, piles);
 
             _collider.enabled = false;
             _isDragging = false;
