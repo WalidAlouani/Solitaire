@@ -1,10 +1,15 @@
 using Solitaire.Domain;
+using Solitaire.Domain.Rules;
 using System.Collections.Generic;
 
 namespace Solitaire.Domain.Piles
 {
     public class TableauPile : CardPile
     {
+        public TableauPile() : base(new TableauDropRule()) { }
+
+        public TableauPile(IDropRule customRule) : base(customRule) { }
+
         public bool TryGetCardStack(Card topCard, out List<Card> cardsStack)
         {
             cardsStack = null;
@@ -22,17 +27,6 @@ namespace Solitaire.Domain.Piles
 
             cardsStack = allCards.GetRange(index, allCards.Count - index);
             return true;
-        }
-
-        public override bool CanAddCard(CardPile origin, Card card)
-        {
-            if (IsEmpty())
-            {
-                return card.Rank == Rank.King;
-            }
-
-            Card topCard = Peek();
-            return card.IsRed == topCard.IsBlack && card.Rank == topCard.Rank - 1;
         }
 
         public override bool CanRemoveCard(Card card)

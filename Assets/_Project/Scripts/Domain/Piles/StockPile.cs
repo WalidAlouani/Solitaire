@@ -1,4 +1,5 @@
 using Solitaire.Domain;
+using Solitaire.Domain.Rules;
 
 namespace Solitaire.Domain.Piles
 {
@@ -6,13 +7,14 @@ namespace Solitaire.Domain.Piles
     /// Represents the Stock pile in the Model.
     /// Rules: Cards can only be removed from the top (to go to the Waste).
     /// Cards cannot be added, except by recycling the Waste pile.
+    /// Implements IDrawableSource so WasteDropRule can verify origin
+    /// without depending on the concrete StockPile type.
     /// </summary>
-    public class StockPile : CardPile
+    public class StockPile : CardPile, IDrawableSource
     {
-        public override bool CanAddCard(CardPile origin, Card card)
-        {
-            return false;
-        }
+        public StockPile() : base(new StockDropRule()) { }
+
+        public StockPile(IDropRule customRule) : base(customRule) { }
 
         public override bool CanRemoveCard(Card card)
         {

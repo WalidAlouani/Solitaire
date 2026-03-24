@@ -1,4 +1,5 @@
 using Solitaire.Domain;
+using Solitaire.Domain.Rules;
 
 namespace Solitaire.Domain.Piles
 {
@@ -6,22 +7,9 @@ namespace Solitaire.Domain.Piles
     {
         public Suit Suit { get; private set; }
 
-        public override bool CanAddCard(CardPile origin, Card card)
-        {
-            if (IsEmpty())
-            {
-                return card.Rank == Rank.Ace; // Only Aces on empty foundations
-            }
+        public FoundationPile() : base(new FoundationDropRule()) { }
 
-            if (card.Suit != Suit)
-                return false;
-
-            if (origin.Peek() != card)
-                return false;
-
-            // Must be same suit and one rank higher
-            return card.Rank == Peek().Rank + 1;
-        }
+        public FoundationPile(IDropRule customRule) : base(customRule) { }
 
         public override bool CanRemoveCard(Card card)
         {

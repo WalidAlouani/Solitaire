@@ -1,4 +1,5 @@
 using Solitaire.Domain;
+using Solitaire.Domain.Rules;
 using System;
 using System.Collections.Generic;
 
@@ -7,6 +8,12 @@ namespace Solitaire.Domain.Piles
     public abstract class CardPile
     {
         private readonly Stack<Card> _cards = new Stack<Card>();
+        private readonly IDropRule _dropRule;
+
+        protected CardPile(IDropRule dropRule)
+        {
+            _dropRule = dropRule;
+        }
 
         public bool IsEmpty() => _cards.Count == 0;
         public int Count => _cards.Count;
@@ -69,7 +76,14 @@ namespace Solitaire.Domain.Piles
         public event Action<Card> OnCardAddedEvent;
         public event Action<Card> OnCardRemovedEvent;
 
-        public abstract bool CanAddCard(CardPile origin, Card card);
+        /// <summary>
+        /// Delegates to the injected IDropRule strategy.
+        /// </summary>
+        public bool CanAddCard(CardPile origin, Card card)
+        {
+            return _dropRule.CanAddCard(this, origin, card);
+        }
+
         public abstract bool CanRemoveCard(Card card);
 
         public abstract void OnCardAdded(Card card);
