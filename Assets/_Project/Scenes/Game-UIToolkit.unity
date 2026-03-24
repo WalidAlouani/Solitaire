@@ -152,6 +152,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _gameUI: {fileID: 1347877714}
+  _mainMenuSceneName: MainMenu
 --- !u!4 &727820383
 Transform:
   m_ObjectHideFlags: 0
@@ -294,12 +295,9 @@ MonoBehaviour:
   _tableauFaceDownOffset: 15
   _stockOffset: 0.5
   _wasteOffset: 0.5
-  _moveDuration: 0.15
-  _flipDuration: 0.2
-  _dealCardDuration: 0.1
-  _dealDelay: 0.04
-  _snapBackDuration: 0.12
+  _gameSettings: {fileID: 11400000, guid: b739b4454b2bde649972d1df1e36d32e, type: 2}
   _minOverlapArea: 500
+  _cardTheme: {fileID: 11400000, guid: 97ce5c3960ff55548bf7ce1d88e24b42, type: 2}
 --- !u!114 &1347877715
 MonoBehaviour:
   m_ObjectHideFlags: 0

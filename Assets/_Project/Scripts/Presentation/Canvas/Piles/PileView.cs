@@ -7,24 +7,25 @@ namespace Solitaire.Presentation.Canvas
     [RequireComponent(typeof(RectTransform))]
     public class PileView : MonoBehaviour
     {
-        [Header("Stacking (Tableau)")]
         [SerializeField] private RectTransform _cardsHolder;
-        [SerializeField] private float _faceUpOffset = 0;
-        [SerializeField] private float _faceDownOffset = 0;
+
+        private float _faceUpOffset;
+        private float _faceDownOffset;
 
         public CardPile Model { get; private set; }
         public RectTransform CardsHolder => _cardsHolder;
 
-        public void Initialize(CardPile model)
+        public void Initialize(CardPile model, float faceUpOffset, float faceDownOffset)
         {
             Model = model;
+            _faceUpOffset = faceUpOffset;
+            _faceDownOffset = faceDownOffset;
             gameObject.name = model.GetType().Name;
         }
 
         public void ParentToPile(CardView cardView)
         {
             cardView.transform.SetParent(_cardsHolder);
-            //cardView.transform.SetAsLastSibling();
         }
 
         /// <summary>

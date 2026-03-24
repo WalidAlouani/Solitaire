@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79aee20e70c6bd0458276cd7f9aee43a, type: 3}
+  m_Name: ClassicTheme
+  m_EditorClassIdentifier: 
+  _clubs: {fileID: 21300000, guid: 1ea1a348e0a9fdf45820f7e88b3a86dd, type: 3}
+  _diamonds: {fileID: 21300000, guid: 0d50886f44ab593469315c5c4b7c977b, type: 3}
+  _hearts: {fileID: 21300000, guid: 45b8de29f038ac44e85a8d1ceb39b192, type: 3}
+  _spades: {fileID: 21300000, guid: abd7784b344ddf447aa0fd51e013658f, type: 3}
+  _redJack: {fileID: 21300000, guid: 7acebd5733ccd9541bc87d5a86da81a0, type: 3}
+  _redQueen: {fileID: 21300000, guid: 445da6290ddc86442bb870976543e48f, type: 3}
+  _redKing: {fileID: 21300000, guid: afd31938292d55546bac46b2e81fe1df, type: 3}
+  _blackJack: {fileID: 21300000, guid: 0c367b6066bd709419c1498a1a9b83da, type: 3}
+  _blackQueen: {fileID: 21300000, guid: 709242e284fb2e549aefbfcea3abdadc, type: 3}
+  _blackKing: {fileID: 21300000, guid: 18bdf4e5ecb8d4c4d8c2d3094fd0ce0a, type: 3}
+  _redColor: {r: 1, g: 0, b: 0, a: 1}
+  _blackColor: {r: 0, g: 0, b: 0, a: 1}

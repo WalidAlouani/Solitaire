@@ -17,29 +17,17 @@ namespace Solitaire.Presentation.UIToolkit
     [RequireComponent(typeof(UIDocument))]
     public class UIToolkitGamePresenter : MonoBehaviour, IGameUI
     {
-        [Header("Stacking Offsets (positive = downward cascade)")]
-        [SerializeField] private float _tableauFaceUpOffset = 30f;
-        [SerializeField] private float _tableauFaceDownOffset = 15f;
-        [SerializeField] private float _stockOffset = 0.5f;
-        [SerializeField] private float _wasteOffset = 0.5f;
+        
 
-        [Header("Animation")]
-        [SerializeField] private float _moveDuration = 0.15f;
-        [SerializeField] private float _flipDuration = 0.2f;
-        [SerializeField] private float _dealCardDuration = 0.1f;
-        [SerializeField] private float _dealDelay = 0.04f;
-        [SerializeField] private float _snapBackDuration = 0.12f;
+        [Header("Settings")]
+        [SerializeField] private GameSettingsSO _gameSettings;
 
-        [Header("Drop Detection")]
-        [Tooltip("Minimum overlap area (in px squared) between card and pile for a valid drop")]
-        [SerializeField] private float _minOverlapArea = 500f;
+        
 
-        [Header("Win Screen")]
-        [SerializeField] private float _winScreenFadeDuration = 0.5f;
-        [SerializeField] private float _winScreenDelayBeforeShow = 0.5f;
+        
 
-        [Header("Auto-Complete")]
-        [SerializeField] private float _autoCompleteStepDelay = 0.15f;
+        [Header("Theme")]
+        [SerializeField] private CardThemeSO _cardTheme;
 
         // UI references
         private UIDocument _uiDocument;
@@ -275,14 +263,14 @@ namespace Solitaire.Presentation.UIToolkit
 
             for (int i = 0; i < 7; i++)
             {
-                _tableauPiles[i].Initialize(_game.Tableaus[i], _tableauFaceUpOffset, _tableauFaceDownOffset);
+                _tableauPiles[i].Initialize(_game.Tableaus[i], _gameSettings.UITKTableauOffsets.FaceUpOffset, _gameSettings.UITKTableauOffsets.FaceDownOffset);
                 _pileMap[_game.Tableaus[i]] = _tableauPiles[i];
             }
 
-            _stockPile.Initialize(_game.Stock, _stockOffset, _stockOffset);
+            _stockPile.Initialize(_game.Stock, _gameSettings.UITKStockOffsets.FaceUpOffset, _gameSettings.UITKStockOffsets.FaceDownOffset);
             _pileMap[_game.Stock] = _stockPile;
 
-            _wastePile.Initialize(_game.Waste, _wasteOffset, _wasteOffset);
+            _wastePile.Initialize(_game.Waste, _gameSettings.UITKWasteOffsets.FaceUpOffset, _gameSettings.UITKWasteOffsets.FaceDownOffset);
             _pileMap[_game.Waste] = _wastePile;
         }
 
@@ -296,7 +284,7 @@ namespace Solitaire.Presentation.UIToolkit
 
             foreach (Card card in stockCards)
             {
-                var cardElement = new CardElement(card);
+                var cardElement = new CardElement(card, _cardTheme);
                 _cardMap[card] = cardElement;
                 _stockPile.AddCard(cardElement);
 
@@ -315,6 +303,7 @@ namespace Solitaire.Presentation.UIToolkit
         {
             yield return null;
             yield return null;
+            yield return new WaitForSeconds(_gameSettings.DealStartDelay);
 
             Rect stockBound = _stockPile.worldBound;
 
@@ -344,17 +333,17 @@ namespace Solitaire.Presentation.UIToolkit
                     for (int k = 0; k < row; k++)
                     {
                         targetY += cards[k].IsFaceUp
-                            ? _tableauFaceUpOffset
-                            : _tableauFaceDownOffset;
+                            ? _gameSettings.UITKTableauOffsets.FaceUpOffset
+                            : _gameSettings.UITKTableauOffsets.FaceDownOffset;
                     }
                     Vector2 target = new Vector2(tableauBound.x, tableauBound.y + targetY);
                     Vector2 start = new Vector2(stockBound.x, stockBound.y);
 
                     float elapsed = 0f;
-                    while (elapsed < _dealCardDuration)
+                    while (elapsed < _gameSettings.DealCardDuration)
                     {
                         elapsed += Time.deltaTime;
-                        float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / _dealCardDuration));
+                        float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / _gameSettings.DealCardDuration));
                         cardElement.style.left = Mathf.Lerp(start.x, target.x, t);
                         cardElement.style.top = Mathf.Lerp(start.y, target.y, t);
                         yield return null;
@@ -369,7 +358,7 @@ namespace Solitaire.Presentation.UIToolkit
                     if (card.IsFaceUp)
                         cardElement.UpdateFaceUpStatus();
 
-                    yield return new WaitForSeconds(_dealDelay);
+                    yield return new WaitForSeconds(_gameSettings.DealCardDelay);
                 }
             }
 
@@ -455,7 +444,7 @@ namespace Solitaire.Presentation.UIToolkit
 
             _draggedCardRect = new Rect(cardX, cardY, cardW, cardH);
 
-            float offset = _tableauFaceUpOffset;
+            float offset = _gameSettings.UITKTableauOffsets.FaceUpOffset;
             for (int i = 1; i < _draggedCards.Count; i++)
             {
                 _draggedCards[i].style.left = cardX;
@@ -507,7 +496,7 @@ namespace Solitaire.Presentation.UIToolkit
                 Rect pileRect = GetEffectiveDropRect(pile);
                 float overlapArea = CalculateOverlapArea(cardRect, pileRect);
 
-                if (overlapArea > _minOverlapArea)
+                if (overlapArea > _gameSettings.MinOverlapArea)
                 {
                     candidates.Add((pile, overlapArea));
                 }
@@ -574,10 +563,10 @@ namespace Solitaire.Presentation.UIToolkit
             }
 
             float elapsed = 0f;
-            while (elapsed < _snapBackDuration)
+            while (elapsed < _gameSettings.SnapBackDuration)
             {
                 elapsed += Time.deltaTime;
-                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / _snapBackDuration));
+                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / _gameSettings.SnapBackDuration));
 
                 for (int i = 0; i < _draggedCards.Count; i++)
                 {
@@ -667,10 +656,10 @@ namespace Solitaire.Presentation.UIToolkit
             Vector2 targetWorldPos = new Vector2(targetPileBound.x, targetPileBound.y + targetCardY);
 
             float elapsed = 0f;
-            while (elapsed < _moveDuration)
+            while (elapsed < _gameSettings.CardMoveDuration)
             {
                 elapsed += Time.deltaTime;
-                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / _moveDuration));
+                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / _gameSettings.CardMoveDuration));
 
                 cardElement.style.left = Mathf.Lerp(startWorldPos.x, targetWorldPos.x, t);
                 cardElement.style.top = Mathf.Lerp(startWorldPos.y, targetWorldPos.y, t);
@@ -711,7 +700,7 @@ namespace Solitaire.Presentation.UIToolkit
 
         private IEnumerator AnimateFlip(CardElement cardElement)
         {
-            float halfDuration = _flipDuration / 2f;
+            float halfDuration = _gameSettings.CardFlipDuration / 2f;
             float time = 0f;
 
             while (time < halfDuration)
@@ -788,7 +777,7 @@ namespace Solitaire.Presentation.UIToolkit
         {
             while (_game.AutoCompleteStep())
             {
-                yield return new WaitForSeconds(_autoCompleteStepDelay);
+                yield return new WaitForSeconds(_gameSettings.AutoCompleteStepDelay);
             }
             _isAutoCompleting = false;
         }
@@ -890,13 +879,13 @@ namespace Solitaire.Presentation.UIToolkit
 
         private IEnumerator AnimateWinScreenIn()
         {
-            yield return new WaitForSeconds(_winScreenDelayBeforeShow);
+            yield return new WaitForSeconds(_gameSettings.WinScreenShowDelay);
 
             float elapsed = 0f;
-            while (elapsed < _winScreenFadeDuration)
+            while (elapsed < _gameSettings.WinScreenFadeDuration)
             {
                 elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / _winScreenFadeDuration);
+                float t = Mathf.Clamp01(elapsed / _gameSettings.WinScreenFadeDuration);
                 float eased = 1f - Mathf.Pow(1f - t, 3f);
 
                 _winScreenOverlay.style.opacity = eased;

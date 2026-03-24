@@ -2387,7 +2387,7 @@ MonoBehaviour:
   _wastePileView: {fileID: 2060543363}
   _winScreenPopup: {fileID: 1885244128}
   _autoCompleteButton: {fileID: 894923284}
-  _autoCompleteStepDelay: 0.1
+  _gameSettings: {fileID: 11400000, guid: b739b4454b2bde649972d1df1e36d32e, type: 2}
 --- !u!114 &1207311530
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2402,6 +2402,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _cardPrefab: {fileID: 1030952044486569153, guid: 86ebb7218afd36145bf25a8e081e7b2f, type: 3}
   _topLevelCanvas: {fileID: 1207311528}
+  _cardTheme: {fileID: 11400000, guid: 97ce5c3960ff55548bf7ce1d88e24b42, type: 2}
 --- !u!1 &1277142346
 GameObject:
   m_ObjectHideFlags: 0

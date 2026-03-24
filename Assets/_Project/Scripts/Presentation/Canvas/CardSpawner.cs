@@ -14,6 +14,7 @@ namespace Solitaire.Presentation.Canvas
     {
         [SerializeField] private CardView _cardPrefab;
         [SerializeField] private Transform _topLevelCanvas;
+        [SerializeField] private CardThemeSO _cardTheme;
 
         private readonly Dictionary<Card, CardView> _cardViewMap = new Dictionary<Card, CardView>();
         private readonly Dictionary<CardPile, PileView> _pileViewMap = new Dictionary<CardPile, PileView>();
@@ -37,7 +38,7 @@ namespace Solitaire.Presentation.Canvas
         {
             CardView cardView = Instantiate(_cardPrefab, pileView.CardsHolder.transform);
 
-            cardView.Initialize(cardModel);
+            cardView.Initialize(cardModel, _cardTheme);
             cardView.SetEventBus(_eventBus);
             cardView.TopLevelCanvasTransform = _topLevelCanvas;
 

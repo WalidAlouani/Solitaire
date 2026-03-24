@@ -1,4 +1,5 @@
 using Solitaire.Domain;
+using Solitaire.Presentation;
 using System;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -50,9 +51,9 @@ namespace Solitaire.Presentation.UIToolkit
             RegisterCallbacks();
         }
 
-        public CardElement(Card model) : this()
+        public CardElement(Card model, CardThemeSO theme) : this()
         {
-            Initialize(model);
+            Initialize(model, theme);
         }
 
         private void BuildVisualTree()
@@ -125,47 +126,22 @@ namespace Solitaire.Presentation.UIToolkit
             style.height = StyleKeyword.Auto;
         }
 
-        public void Initialize(Card model)
+        public void Initialize(Card model, CardThemeSO theme)
         {
             Model = model;
             name = $"Card_{model.Rank}_{model.Suit}";
 
-            // Load suit sprites
-            Sprite suitSprite = Resources.Load<Sprite>($"Suits/{model.Suit}");
+            Sprite suitSprite = theme.GetSuitSprite(model.Suit);
+            Sprite centerSprite = theme.GetCenterSprite(model.Rank, model.Suit, model.IsRed);
+
             if (suitSprite != null)
-            {
                 _suitSmall.style.backgroundImage = new StyleBackground(suitSprite);
-                _suitCenter.style.backgroundImage = new StyleBackground(suitSprite);
-            }
 
-            // Load face card art for J/Q/K
-            string colorFolder = model.IsRed ? "Red" : "Black";
-            switch (model.Rank)
-            {
-                case Rank.Ace:
-                    _rankLabel.text = "A";
-                    break;
-                case Rank.Jack:
-                    _rankLabel.text = "J";
-                    _suitCenter.style.backgroundImage = new StyleBackground(
-                        Resources.Load<Sprite>($"Ranks/{colorFolder}/{model.Rank}"));
-                    break;
-                case Rank.Queen:
-                    _rankLabel.text = "Q";
-                    _suitCenter.style.backgroundImage = new StyleBackground(
-                        Resources.Load<Sprite>($"Ranks/{colorFolder}/{model.Rank}"));
-                    break;
-                case Rank.King:
-                    _rankLabel.text = "K";
-                    _suitCenter.style.backgroundImage = new StyleBackground(
-                        Resources.Load<Sprite>($"Ranks/{colorFolder}/{model.Rank}"));
-                    break;
-                default:
-                    _rankLabel.text = ((int)model.Rank).ToString();
-                    break;
-            }
+            if (centerSprite != null)
+                _suitCenter.style.backgroundImage = new StyleBackground(centerSprite);
 
-            // Color
+            _rankLabel.text = theme.GetRankDisplayText(model.Rank);
+
             if (model.IsRed)
             {
                 _rankLabel.AddToClassList("card-red");

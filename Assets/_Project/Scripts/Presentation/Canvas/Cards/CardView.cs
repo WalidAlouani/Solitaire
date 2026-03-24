@@ -58,34 +58,15 @@ namespace Solitaire.Presentation.Canvas
             _eventBus = eventBus;
         }
 
-        public void Initialize(Card model)
+        public void Initialize(Card model, CardThemeSO theme)
         {
             Model = model;
             gameObject.name = $"{model.Rank} of {model.Suit}";
 
-            _suitImageSmall.sprite = Resources.Load<Sprite>($"Suits/{model.Suit}");
-
-            string colorFolder = model.IsRed ? "Red" : "Black";
-
-            switch (model.Rank)
-            {
-                case Rank.Ace:
-                    _rankText.text = "A";
-                    _suitImage.sprite = Resources.Load<Sprite>($"Suits/{model.Suit}");
-                    break;
-                case Rank.Jack:
-                case Rank.Queen:
-                case Rank.King:
-                    _rankText.text = model.Rank == Rank.Jack ? "J" : model.Rank == Rank.Queen ? "Q" : "K";
-                    _suitImage.sprite = Resources.Load<Sprite>($"Ranks/{colorFolder}/{model.Rank}");
-                    break;
-                default:
-                    _rankText.text = ((int)model.Rank).ToString();
-                    _suitImage.sprite = Resources.Load<Sprite>($"Suits/{model.Suit}");
-                    break;
-            }
-
-            _rankText.color = model.IsRed ? Color.red : Color.black;
+            _suitImageSmall.sprite = theme.GetSuitSprite(model.Suit);
+            _suitImage.sprite = theme.GetCenterSprite(model.Rank, model.Suit, model.IsRed);
+            _rankText.text = theme.GetRankDisplayText(model.Rank);
+            _rankText.color = theme.GetCardColor(model.IsRed);
 
             UpdateFaceUpStatus();
         }

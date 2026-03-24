@@ -31,7 +31,7 @@ namespace Solitaire.Presentation.Canvas
 
         [Header("Auto-Complete")]
         [SerializeField] private Button _autoCompleteButton;
-        [SerializeField] private float _autoCompleteStepDelay = 0.15f;
+        [SerializeField] private GameSettingsSO _gameSettings;
 
         private Game _game;
         private ViewEventBus _viewEventBus;
@@ -165,27 +165,27 @@ namespace Solitaire.Presentation.Canvas
             for (int i = 0; i < _game.Tableaus.Count; i++)
             {
                 _cardSpawner.RegisterPileMapping(_game.Tableaus[i], _tableauPileViews[i]);
-                _tableauPileViews[i].Initialize(_game.Tableaus[i]);
+                _tableauPileViews[i].Initialize(_game.Tableaus[i], _gameSettings.CanvasTableauOffsets.FaceUpOffset, _gameSettings.CanvasTableauOffsets.FaceDownOffset);
             }
 
             for (int i = 0; i < _game.Foundations.Count; i++)
             {
                 _cardSpawner.RegisterPileMapping(_game.Foundations[i], _foundationPileViews[i]);
-                _foundationPileViews[i].Initialize(_game.Foundations[i]);
+                _foundationPileViews[i].Initialize(_game.Foundations[i], 0f, 0f);
             }
 
             _cardSpawner.RegisterPileMapping(_game.Stock, _stockPileView);
-            _stockPileView.Initialize(_game.Stock);
+            _stockPileView.Initialize(_game.Stock, _gameSettings.CanvasStockOffsets.FaceUpOffset, _gameSettings.CanvasStockOffsets.FaceDownOffset);
 
             _cardSpawner.RegisterPileMapping(_game.Waste, _wastePileView);
-            _wastePileView.Initialize(_game.Waste);
+            _wastePileView.Initialize(_game.Waste, _gameSettings.CanvasWasteOffsets.FaceUpOffset, _gameSettings.CanvasWasteOffsets.FaceDownOffset);
         }
 
         // --- Deal Animation ---
 
         private IEnumerator DealAnimation()
         {
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(_gameSettings.DealStartDelay);
 
             foreach (var tableau in _game.Tableaus)
             {
@@ -194,11 +194,11 @@ namespace Solitaire.Presentation.Canvas
 
                 foreach (Card card in cardsInPile)
                 {
-                    yield return new WaitForSeconds(0.1f);
+                    yield return new WaitForSeconds(_gameSettings.DealCardDelay);
                     CardView cardView = _cardSpawner.GetCardView(card);
-                    cardView.AnimateMove(pileView);
+                    cardView.AnimateMove(pileView, _gameSettings.DealCardDuration);
                     if (card.IsFaceUp)
-                        cardView.AnimateFlip();
+                        cardView.AnimateFlip(_gameSettings.CardFlipDuration);
                 }
             }
 
@@ -285,7 +285,7 @@ namespace Solitaire.Presentation.Canvas
             CardView cardView = _cardSpawner.GetCardView(card);
             PileView pileView = _cardSpawner.GetPileView(newPile);
 
-            cardView.AnimateMove(pileView);
+            cardView.AnimateMove(pileView, _gameSettings.CardMoveDuration);
             SetAllCardsInteraction(false);
 
             cardView.OnCardMoveCompleted += OnCardMoveCompleted;
@@ -303,7 +303,7 @@ namespace Solitaire.Presentation.Canvas
             if (!_cardSpawner.TryGetCardView(card, out CardView cardView))
                 return;
 
-            cardView.AnimateFlip();
+            cardView.AnimateFlip(_gameSettings.CardFlipDuration);
             SetAllCardsInteraction(false);
 
             cardView.OnCardFlipCompleted += OnCardFlipCompleted;
@@ -334,7 +334,7 @@ namespace Solitaire.Presentation.Canvas
         {
             while (_game.AutoCompleteStep())
             {
-                yield return new WaitForSeconds(_autoCompleteStepDelay);
+                yield return new WaitForSeconds(_gameSettings.AutoCompleteStepDelay);
             }
             _isAutoCompleting = false;
         }
