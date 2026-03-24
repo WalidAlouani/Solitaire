@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace Solitaire.Presentation.Canvas
 {
@@ -28,11 +29,16 @@ namespace Solitaire.Presentation.Canvas
         [Header("Win Screen")]
         [SerializeField] private WinScreenPopup _winScreenPopup;
 
+        [Header("Auto-Complete")]
+        [SerializeField] private Button _autoCompleteButton;
+        [SerializeField] private float _autoCompleteStepDelay = 0.15f;
+
         [Header("Scenes")]
         [SerializeField] private string _mainMenuSceneName = "MainMenu";
 
         private Game _game;
         private bool _canInteract;
+        private bool _isAutoCompleting;
 
         public Game Game => _game;
 
@@ -55,6 +61,7 @@ namespace Solitaire.Presentation.Canvas
 
             UnsubscribeFromGame();
             UnsubscribeFromWinScreen();
+            UnsubscribeAutoCompleteButton();
         }
 
         // --- IGameUI ---
@@ -65,6 +72,9 @@ namespace Solitaire.Presentation.Canvas
 
             if (_winScreenPopup != null)
                 _winScreenPopup.Hide();
+
+            HideAutoCompleteButton();
+            _isAutoCompleting = false;
 
             _game = new Game();
 
@@ -79,6 +89,7 @@ namespace Solitaire.Presentation.Canvas
             _game.OnCardMoved += HandleCardMoved;
             _game.OnCardFlipped += HandleCardFlipped;
             _game.OnGameWon += HandleGameWon;
+            _game.OnAutoCompleteChanged += HandleAutoCompleteChanged;
         }
 
         public void ShowWinScreen()
@@ -93,10 +104,25 @@ namespace Solitaire.Presentation.Canvas
         public void RestartGame()
         {
             StopAllCoroutines();
+            _isAutoCompleting = false;
             UnsubscribeFromWinScreen();
 
             _cardSpawner.DestroyAllCards();
             StartGame();
+        }
+
+        public void ShowAutoCompleteButton()
+        {
+            if (_autoCompleteButton == null) return;
+            _autoCompleteButton.gameObject.SetActive(true);
+            _autoCompleteButton.onClick.AddListener(HandleAutoCompleteClicked);
+        }
+
+        public void HideAutoCompleteButton()
+        {
+            if (_autoCompleteButton == null) return;
+            _autoCompleteButton.onClick.RemoveListener(HandleAutoCompleteClicked);
+            _autoCompleteButton.gameObject.SetActive(false);
         }
 
         // --- Pile Binding ---
@@ -148,7 +174,7 @@ namespace Solitaire.Presentation.Canvas
 
         private void HandleCardClicked(CardView cardView)
         {
-            if (!_canInteract) return;
+            if (!_canInteract || _isAutoCompleting) return;
 
             var pile = _game.FindPileForCard(cardView.Model);
 
@@ -177,7 +203,7 @@ namespace Solitaire.Presentation.Canvas
 
         private void HandleCardDroppedOnPiles(CardView cardView, List<PileView> pilesView)
         {
-            if (!_canInteract) return;
+            if (!_canInteract || _isAutoCompleting) return;
 
             var success = false;
             var currentPile = _game.FindPileForCard(cardView.Model);
@@ -201,19 +227,19 @@ namespace Solitaire.Presentation.Canvas
 
         private void HandleStockClicked()
         {
-            if (!_canInteract) return;
+            if (!_canInteract || _isAutoCompleting) return;
             _game.DrawFromStock();
         }
 
         public void HandleUndo()
         {
-            if (!_canInteract) return;
+            if (!_canInteract || _isAutoCompleting) return;
             _game.Undo();
         }
 
         public void HandleRedo()
         {
-            if (!_canInteract) return;
+            if (!_canInteract || _isAutoCompleting) return;
             _game.Redo();
         }
 
@@ -233,7 +259,8 @@ namespace Solitaire.Presentation.Canvas
         private void OnCardMoveCompleted(CardView cardView)
         {
             cardView.OnCardMoveCompleted -= OnCardMoveCompleted;
-            SetAllCardsInteraction(true);
+            if (!_isAutoCompleting)
+                SetAllCardsInteraction(true);
         }
 
         private void HandleCardFlipped(Card card)
@@ -250,7 +277,8 @@ namespace Solitaire.Presentation.Canvas
         private void OnCardFlipCompleted(CardView cardView)
         {
             cardView.OnCardFlipCompleted -= OnCardFlipCompleted;
-            SetAllCardsInteraction(true);
+            if (!_isAutoCompleting)
+                SetAllCardsInteraction(true);
         }
 
         private void SetAllCardsInteraction(bool interactable)
@@ -262,7 +290,36 @@ namespace Solitaire.Presentation.Canvas
         private void HandleGameWon()
         {
             SetAllCardsInteraction(false);
+            HideAutoCompleteButton();
+            _isAutoCompleting = false;
             ShowWinScreen();
+        }
+
+        // --- Auto-Complete ---
+
+        private void HandleAutoCompleteChanged(bool available)
+        {
+            if (available && !_isAutoCompleting)
+                ShowAutoCompleteButton();
+            else if (!available)
+                HideAutoCompleteButton();
+        }
+
+        private void HandleAutoCompleteClicked()
+        {
+            if (_isAutoCompleting) return;
+            HideAutoCompleteButton();
+            _isAutoCompleting = true;
+            SetAllCardsInteraction(false);
+            StartCoroutine(RunAutoComplete());
+        }
+
+        private IEnumerator RunAutoComplete()
+        {
+            while (_game.AutoCompleteStep())
+            {
+                yield return new WaitForSeconds(_autoCompleteStepDelay);
+            }
         }
 
         // --- Win Screen Handlers ---
@@ -276,6 +333,7 @@ namespace Solitaire.Presentation.Canvas
         {
             UnsubscribeFromGame();
             UnsubscribeFromWinScreen();
+            UnsubscribeAutoCompleteButton();
             GameEvents.ClearAllSubscribers();
             SceneManager.LoadScene(_mainMenuSceneName);
         }
@@ -289,6 +347,7 @@ namespace Solitaire.Presentation.Canvas
                 _game.OnCardMoved -= HandleCardMoved;
                 _game.OnCardFlipped -= HandleCardFlipped;
                 _game.OnGameWon -= HandleGameWon;
+                _game.OnAutoCompleteChanged -= HandleAutoCompleteChanged;
             }
         }
 
@@ -299,6 +358,12 @@ namespace Solitaire.Presentation.Canvas
                 _winScreenPopup.OnPlayAgainClicked -= HandlePlayAgainClicked;
                 _winScreenPopup.OnMainMenuClicked -= HandleMainMenuClicked;
             }
+        }
+
+        private void UnsubscribeAutoCompleteButton()
+        {
+            if (_autoCompleteButton != null)
+                _autoCompleteButton.onClick.RemoveListener(HandleAutoCompleteClicked);
         }
     }
 }

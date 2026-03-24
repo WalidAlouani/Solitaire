@@ -38,6 +38,9 @@ namespace Solitaire.Presentation.UIToolkit
         [SerializeField] private float _winScreenFadeDuration = 0.5f;
         [SerializeField] private float _winScreenDelayBeforeShow = 0.5f;
 
+        [Header("Auto-Complete")]
+        [SerializeField] private float _autoCompleteStepDelay = 0.15f;
+
         [Header("Scenes")]
         [SerializeField] private string _mainMenuSceneName = "MainMenu";
 
@@ -49,6 +52,10 @@ namespace Solitaire.Presentation.UIToolkit
         // Win screen elements
         private VisualElement _winScreenOverlay;
         private VisualElement _winScreenPanel;
+
+        // Auto-complete button
+        private Button _autoCompleteBtn;
+        private bool _isAutoCompleting;
 
         // Pile elements
         private PileElement[] _foundationPiles = new PileElement[4];
@@ -88,6 +95,8 @@ namespace Solitaire.Presentation.UIToolkit
         public void StartGame()
         {
             UnsubscribeFromGame();
+            HideAutoCompleteButton();
+            _isAutoCompleting = false;
 
             _game = new Game();
 
@@ -101,6 +110,7 @@ namespace Solitaire.Presentation.UIToolkit
             _game.OnCardMoved += HandleCardMoved;
             _game.OnCardFlipped += HandleCardFlipped;
             _game.OnGameWon += HandleGameWon;
+            _game.OnAutoCompleteChanged += HandleAutoCompleteChanged;
 
             StartCoroutine(DealAnimation());
         }
@@ -298,7 +308,7 @@ namespace Solitaire.Presentation.UIToolkit
 
         private void HandleCardClicked(CardElement cardElement)
         {
-            if (!_canInteract) return;
+            if (!_canInteract || _isAutoCompleting) return;
 
             var pile = _game.FindPileForCard(cardElement.Model);
 
@@ -329,7 +339,7 @@ namespace Solitaire.Presentation.UIToolkit
 
         private void HandleDragStarted(CardElement cardElement)
         {
-            if (!_canInteract) return;
+            if (!_canInteract || _isAutoCompleting) return;
 
             var pile = cardElement.ParentPile;
             if (pile == null) return;
@@ -637,7 +647,8 @@ namespace Solitaire.Presentation.UIToolkit
             if (_activeAnimations <= 0)
             {
                 _activeAnimations = 0;
-                SetAllCardsInteraction(true);
+                if (!_isAutoCompleting)
+                    SetAllCardsInteraction(true);
             }
         }
 
@@ -681,7 +692,8 @@ namespace Solitaire.Presentation.UIToolkit
             if (_activeAnimations <= 0)
             {
                 _activeAnimations = 0;
-                SetAllCardsInteraction(true);
+                if (!_isAutoCompleting)
+                    SetAllCardsInteraction(true);
             }
         }
 
@@ -689,19 +701,19 @@ namespace Solitaire.Presentation.UIToolkit
 
         private void HandleStockClicked()
         {
-            if (!_canInteract) return;
+            if (!_canInteract || _isAutoCompleting) return;
             _game.DrawFromStock();
         }
 
         public void HandleUndo()
         {
-            if (!_canInteract) return;
+            if (!_canInteract || _isAutoCompleting) return;
             _game.Undo();
         }
 
         public void HandleRedo()
         {
-            if (!_canInteract) return;
+            if (!_canInteract || _isAutoCompleting) return;
             _game.Redo();
         }
 
@@ -717,7 +729,78 @@ namespace Solitaire.Presentation.UIToolkit
         private void HandleGameWon()
         {
             SetAllCardsInteraction(false);
+            HideAutoCompleteButton();
+            _isAutoCompleting = false;
             ShowWinScreen();
+        }
+
+        // ==================================================================
+        //  AUTO-COMPLETE — programmatic button at bottom of screen
+        // ==================================================================
+
+        public void ShowAutoCompleteButton()
+        {
+            if (_autoCompleteBtn != null) return;
+
+            _autoCompleteBtn = new Button(HandleAutoCompleteClicked);
+            _autoCompleteBtn.name = "BtnAutoComplete";
+            _autoCompleteBtn.text = "Auto Complete";
+            _autoCompleteBtn.style.position = Position.Absolute;
+            _autoCompleteBtn.style.bottom = 40;
+            _autoCompleteBtn.style.alignSelf = Align.Center;
+            _autoCompleteBtn.style.left = Length.Percent(50);
+            _autoCompleteBtn.style.translate = new StyleTranslate(new Translate(Length.Percent(-50), 0));
+            _autoCompleteBtn.style.fontSize = 32;
+            _autoCompleteBtn.style.color = Color.white;
+            _autoCompleteBtn.style.backgroundColor = new Color(0.2f, 0.6f, 0.9f, 1f);
+            _autoCompleteBtn.style.paddingTop = 16;
+            _autoCompleteBtn.style.paddingBottom = 16;
+            _autoCompleteBtn.style.paddingLeft = 40;
+            _autoCompleteBtn.style.paddingRight = 40;
+            _autoCompleteBtn.style.borderTopLeftRadius = 12;
+            _autoCompleteBtn.style.borderTopRightRadius = 12;
+            _autoCompleteBtn.style.borderBottomLeftRadius = 12;
+            _autoCompleteBtn.style.borderBottomRightRadius = 12;
+            _autoCompleteBtn.style.borderTopWidth = 0;
+            _autoCompleteBtn.style.borderBottomWidth = 0;
+            _autoCompleteBtn.style.borderLeftWidth = 0;
+            _autoCompleteBtn.style.borderRightWidth = 0;
+            _autoCompleteBtn.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+            _root.Add(_autoCompleteBtn);
+        }
+
+        public void HideAutoCompleteButton()
+        {
+            if (_autoCompleteBtn == null) return;
+            if (_root != null && _root.Contains(_autoCompleteBtn))
+                _root.Remove(_autoCompleteBtn);
+            _autoCompleteBtn = null;
+        }
+
+        private void HandleAutoCompleteChanged(bool available)
+        {
+            if (available && !_isAutoCompleting)
+                ShowAutoCompleteButton();
+            else if (!available)
+                HideAutoCompleteButton();
+        }
+
+        private void HandleAutoCompleteClicked()
+        {
+            if (_isAutoCompleting) return;
+            HideAutoCompleteButton();
+            _isAutoCompleting = true;
+            SetAllCardsInteraction(false);
+            StartCoroutine(RunAutoComplete());
+        }
+
+        private IEnumerator RunAutoComplete()
+        {
+            while (_game.AutoCompleteStep())
+            {
+                yield return new WaitForSeconds(_autoCompleteStepDelay);
+            }
         }
 
         // ==================================================================
@@ -875,7 +958,9 @@ namespace Solitaire.Presentation.UIToolkit
         public void RestartGame()
         {
             StopAllCoroutines();
+            _isAutoCompleting = false;
             HideWinScreen();
+            HideAutoCompleteButton();
             DestroyAllCards();
             StartGame();
         }
@@ -929,6 +1014,7 @@ namespace Solitaire.Presentation.UIToolkit
                 _game.OnCardMoved -= HandleCardMoved;
                 _game.OnCardFlipped -= HandleCardFlipped;
                 _game.OnGameWon -= HandleGameWon;
+                _game.OnAutoCompleteChanged -= HandleAutoCompleteChanged;
             }
         }
 

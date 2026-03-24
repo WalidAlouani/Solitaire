@@ -20,10 +20,14 @@ namespace Solitaire.Application
         public event Action OnGameWon;
         public event Action<Card, CardPile> OnCardMoved;
         public event Action<Card> OnCardFlipped;
+        public event Action<bool> OnAutoCompleteChanged;
 
         private List<Card> _deck;
         private CommandManager _commandManager;
         private readonly Dictionary<Card, CardPile> _cardToPile = new Dictionary<Card, CardPile>();
+        private bool _autoCompleteAvailable;
+
+        public bool AutoCompleteAvailable => _autoCompleteAvailable;
 
         public Game()
         {
@@ -71,6 +75,7 @@ namespace Solitaire.Application
         private void HandleCardFlipped(Card card, bool isFaceUp)
         {
             OnCardFlipped?.Invoke(card);
+            CheckAutoCompleteStatus();
         }
 
         private void HandleFoundationCardAdded(Card card)
@@ -80,12 +85,15 @@ namespace Solitaire.Application
 
             if (CheckWin())
                 OnGameWon?.Invoke();
+            else
+                CheckAutoCompleteStatus();
         }
 
         private void HandleCardAdded(Card card)
         {
             UpdateCardPileMapping(card);
             OnCardMoved?.Invoke(card, FindPileForCard(card));
+            CheckAutoCompleteStatus();
         }
 
         private void HandleCardRemoved(Card card)
@@ -164,6 +172,86 @@ namespace Solitaire.Application
             return true;
         }
 
+        // --- Auto-Complete ---
+
+        /// <summary>
+        /// Auto-complete is available when all remaining cards are face-up
+        /// (stock and waste are empty, every tableau card is face-up).
+        /// </summary>
+        public bool CanAutoComplete()
+        {
+            if (Stock.Count > 0 || Waste.Count > 0)
+                return false;
+
+            for (int i = 0; i < Tableaus.Count; i++)
+            {
+                var cards = Tableaus[i].GetCardsReverse();
+                for (int j = 0; j < cards.Count; j++)
+                {
+                    if (!cards[j].IsFaceUp)
+                        return false;
+                }
+            }
+
+            // Must still have cards to move (not already won)
+            for (int i = 0; i < Tableaus.Count; i++)
+            {
+                if (Tableaus[i].Count > 0)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Performs one auto-complete step: moves the lowest-ranked eligible card
+        /// from any tableau to its foundation. Returns true if a move was made.
+        /// </summary>
+        public bool AutoCompleteStep()
+        {
+            Card bestCard = null;
+            CardPile bestOrigin = null;
+            FoundationPile bestFoundation = null;
+
+            for (int t = 0; t < Tableaus.Count; t++)
+            {
+                if (Tableaus[t].Count == 0)
+                    continue;
+
+                Card topCard = Tableaus[t].Peek();
+
+                for (int f = 0; f < Foundations.Count; f++)
+                {
+                    if (!Foundations[f].CanAddCard(Tableaus[t], topCard))
+                        continue;
+
+                    if (bestCard == null || topCard.Rank < bestCard.Rank)
+                    {
+                        bestCard = topCard;
+                        bestOrigin = Tableaus[t];
+                        bestFoundation = Foundations[f];
+                    }
+                }
+            }
+
+            if (bestCard == null)
+                return false;
+
+            return TryMoveCard(bestCard, bestFoundation);
+        }
+
+        private void CheckAutoCompleteStatus()
+        {
+            bool available = CanAutoComplete();
+            if (available != _autoCompleteAvailable)
+            {
+                _autoCompleteAvailable = available;
+                OnAutoCompleteChanged?.Invoke(available);
+            }
+        }
+
+        // --- Deck Management ---
+
         public void RecycleAndShuffleStock()
         {
             Stock.Clear();
@@ -176,6 +264,7 @@ namespace Solitaire.Application
                 foundation.Clear();
 
             _cardToPile.Clear();
+            _autoCompleteAvailable = false;
 
             foreach (var card in _deck)
                 card.SetFaceUp(false);

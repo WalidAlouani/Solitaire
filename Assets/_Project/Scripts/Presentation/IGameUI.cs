@@ -10,5 +10,7 @@ namespace Solitaire.Presentation
         void StartGame();
         void ShowWinScreen();
         void RestartGame();
+        void ShowAutoCompleteButton();
+        void HideAutoCompleteButton();
     }
 }
