@@ -82,7 +82,7 @@ GameObject:
   - component: {fileID: 4070535360442943748}
   - component: {fileID: 6138076661866080384}
   m_Layer: 5
-  m_Name: Pile
+  m_Name: PileView
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

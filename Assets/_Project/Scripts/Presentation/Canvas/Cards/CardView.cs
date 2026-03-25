@@ -1,6 +1,4 @@
 using DG.Tweening;
-using DG.Tweening.Core;
-using DG.Tweening.Plugins.Options;
 using Solitaire.Domain;
 using System;
 using System.Collections.Generic;
@@ -11,7 +9,7 @@ using UnityEngine.UI;
 
 namespace Solitaire.Presentation.Canvas
 {
-    [RequireComponent(typeof(RectTransform), typeof(CanvasGroup))]
+    [RequireComponent(typeof(RectTransform), typeof(CanvasGroup), typeof(Collider2D))]
     public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         public Card Model { get; private set; }
