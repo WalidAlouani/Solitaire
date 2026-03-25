@@ -268,21 +268,22 @@ namespace Solitaire.Presentation.Canvas
         public void AnimateShake(float duration = 0.3f, float strength = 15f)
         {
             _shakeSequence?.Kill();
+            var rectTransform = _frontImage.rectTransform;
 
-            Vector2 origin = _rectTransform.anchoredPosition;
+            Vector2 origin = rectTransform.anchoredPosition;
             float shakeStep = duration / 6f;
 
             _shakeSequence = DOTween.Sequence();
 
             float offsetX = 0f;
-            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, strength, shakeStep).SetEase(Ease.OutQuad));
-            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, -strength, shakeStep).SetEase(Ease.InOutQuad));
-            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, strength * 0.5f, shakeStep).SetEase(Ease.InOutQuad));
-            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, -strength * 0.5f, shakeStep).SetEase(Ease.InOutQuad));
-            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, strength * 0.2f, shakeStep).SetEase(Ease.InOutQuad));
-            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; _rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, 0f, shakeStep).SetEase(Ease.InQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, strength, shakeStep).SetEase(Ease.OutQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, -strength, shakeStep).SetEase(Ease.InOutQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, strength * 0.5f, shakeStep).SetEase(Ease.InOutQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, -strength * 0.5f, shakeStep).SetEase(Ease.InOutQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, strength * 0.2f, shakeStep).SetEase(Ease.InOutQuad));
+            _shakeSequence.Append(DOTween.To(() => offsetX, x => { offsetX = x; rectTransform.anchoredPosition = new Vector2(origin.x + x, origin.y); }, 0f, shakeStep).SetEase(Ease.InQuad));
 
-            _shakeSequence.OnComplete(() => _rectTransform.anchoredPosition = origin);
+            _shakeSequence.OnComplete(() => rectTransform.anchoredPosition = origin);
         }
 
         private void KillActiveTweens()
