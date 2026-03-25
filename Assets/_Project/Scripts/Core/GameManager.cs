@@ -12,25 +12,18 @@ namespace Solitaire.Core
     public class GameManager : MonoBehaviour
     {
         [Header("UI")]
-        [Tooltip("Assign any MonoBehaviour that implements IGameUI (CanvasGamePresenter or UIToolkitGamePresenter)")]
-        [SerializeField] private MonoBehaviour _gameUI;
+        [SerializeField] private GamePresenterBase _gameUI;
 
         [Header("Scenes")]
         [SerializeField] private string _mainMenuSceneName = "MainMenu";
 
         public GameStateManager StateManager { get; private set; }
-        public IGameUI GameUI => _gameUI as IGameUI;
+        public IGameUI GameUI => _gameUI;
         public Game Game { get; private set; }
         public string MainMenuSceneName => _mainMenuSceneName;
 
         private void Awake()
         {
-            if (_gameUI != null && !(_gameUI is IGameUI))
-            {
-                Debug.LogError($"GameManager: assigned UI object '{_gameUI.name}' does not implement IGameUI!");
-                return;
-            }
-
             RegisterGameStates();
         }
 

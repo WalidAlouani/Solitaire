@@ -3,8 +3,6 @@ using Solitaire.Application;
 using Solitaire.Domain;
 using Solitaire.Domain.Piles;
 using Solitaire.Presentation.Canvas.UI;
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -16,7 +14,7 @@ namespace Solitaire.Presentation.Canvas
     /// Handles card animations, drag-and-drop, and visual state.
     /// Flow decisions (dealing → playing → win) are driven by game states.
     /// </summary>
-    public class CanvasGamePresenter : MonoBehaviour, IGameUI
+    public class CanvasGamePresenter : GamePresenterBase
     {
         [Header("View References")]
         [SerializeField] private CardSpawner _cardSpawner;
@@ -32,28 +30,14 @@ namespace Solitaire.Presentation.Canvas
 
         [Header("Auto-Complete")]
         [SerializeField] private Button _autoCompleteButton;
-        [SerializeField] private GameSettingsSO _gameSettings;
 
-        private Game _game;
         private ViewEventBus _viewEventBus;
-        private bool _canInteract;
-        private bool _stateAllowsInteraction;
-        private bool _isAutoCompleting;
 
         // Active deal sequence (for cleanup)
         private Sequence _dealSequence;
 
         // Active pile punch tweens keyed by PileView (for cleanup)
         private readonly Dictionary<PileView, Sequence> _pilePunchTweens = new Dictionary<PileView, Sequence>();
-
-        // --- IGameUI Events ---
-
-        public event Action OnDealingComplete;
-        public event Action OnPlayAgainRequested;
-        public event Action OnMainMenuRequested;
-        public event Action OnAutoCompleteRequested;
-
-        public Game Game => _game;
 
         // --- Lifecycle ---
 
@@ -73,16 +57,17 @@ namespace Solitaire.Presentation.Canvas
             _pilePunchTweens.Clear();
         }
 
-        // --- IGameUI Implementation ---
+        // ==================================================================
+        //  GamePresenterBase Overrides
+        // ==================================================================
 
-        public void StartGame(Game game)
+        protected override void BeforeStartGame()
         {
             UnsubscribeFromViewEventBus();
-            UnsubscribeFromGame();
+        }
 
-            _game = game;
-            _isAutoCompleting = false;
-
+        protected override void SetupAndSpawn()
+        {
             _viewEventBus = new ViewEventBus();
             _cardSpawner.SetEventBus(_viewEventBus);
             SubscribeToViewEventBus();
@@ -90,61 +75,21 @@ namespace Solitaire.Presentation.Canvas
             BindPileViews();
             _cardSpawner.SpawnAllCards(_game, _stockPileView);
             _game.PopulateTableauPiles();
+        }
 
-            _game.OnCardMoved += HandleCardMoved;
-            _game.OnCardFlipped += HandleCardFlipped;
-
+        protected override void StartDealAnimation()
+        {
             PlayDealAnimation();
         }
 
-        public void ShowWinScreen()
+        protected override void CleanupPresenter()
         {
-            if (_winScreenPopup == null) return;
-            _winScreenPopup.OnPlayAgainClicked += HandlePlayAgainClicked;
-            _winScreenPopup.OnMainMenuClicked += HandleMainMenuClicked;
-            _winScreenPopup.Show();
-        }
-
-        public void ShowAutoCompleteButton()
-        {
-            if (_autoCompleteButton == null) return;
-            _autoCompleteButton.gameObject.SetActive(true);
-            _autoCompleteButton.onClick.AddListener(HandleAutoCompleteClicked);
-        }
-
-        public void HideAutoCompleteButton()
-        {
-            if (_autoCompleteButton == null) return;
-            _autoCompleteButton.onClick.RemoveListener(HandleAutoCompleteClicked);
-            _autoCompleteButton.gameObject.SetActive(false);
-        }
-
-        public void RunAutoComplete()
-        {
-            _isAutoCompleting = true;
-            SetAllCardsInteraction(false);
-            StartCoroutine(AutoCompleteCoroutine());
-        }
-
-        public void SetInteractable(bool interactable)
-        {
-            _stateAllowsInteraction = interactable;
-            _canInteract = interactable;
-            _cardSpawner.SetAllCardsInteraction(interactable);
-        }
-
-        public void Cleanup()
-        {
-            StopAllCoroutines();
             _dealSequence?.Kill();
             foreach (var kvp in _pilePunchTweens)
                 kvp.Value?.Kill();
             _pilePunchTweens.Clear();
-            _isAutoCompleting = false;
-            _stateAllowsInteraction = false;
 
             UnsubscribeFromViewEventBus();
-            UnsubscribeFromGame();
             UnsubscribeFromWinScreen();
             UnsubscribeAutoCompleteButton();
 
@@ -157,7 +102,75 @@ namespace Solitaire.Presentation.Canvas
             _cardSpawner.DestroyAllCards();
         }
 
-        // --- View Event Bus ---
+        protected override void SetAllCardsInteraction(bool interactable)
+        {
+            _canInteract = interactable;
+            _cardSpawner.SetAllCardsInteraction(interactable);
+        }
+
+        public override void ShowWinScreen()
+        {
+            if (_winScreenPopup == null) return;
+            _winScreenPopup.OnPlayAgainClicked += HandlePlayAgainClicked;
+            _winScreenPopup.OnMainMenuClicked += HandleMainMenuClicked;
+            _winScreenPopup.Show();
+        }
+
+        public override void ShowAutoCompleteButton()
+        {
+            if (_autoCompleteButton == null) return;
+            _autoCompleteButton.gameObject.SetActive(true);
+            _autoCompleteButton.onClick.AddListener(HandleAutoCompleteClicked);
+        }
+
+        public override void HideAutoCompleteButton()
+        {
+            if (_autoCompleteButton == null) return;
+            _autoCompleteButton.onClick.RemoveListener(HandleAutoCompleteClicked);
+            _autoCompleteButton.gameObject.SetActive(false);
+        }
+
+        // ==================================================================
+        //  Model Event Handlers
+        // ==================================================================
+
+        protected override void HandleCardMoved(Card card, CardPile newPile)
+        {
+            CardView cardView = _cardSpawner.GetCardView(card);
+            PileView pileView = _cardSpawner.GetPileView(newPile);
+
+            cardView.AnimateMove(pileView, _gameSettings.CardMoveDuration);
+            SetAllCardsInteraction(false);
+
+            cardView.OnCardMoveCompleted += OnCardMoveCompleted;
+        }
+
+        private void OnCardMoveCompleted(CardView cardView)
+        {
+            cardView.OnCardMoveCompleted -= OnCardMoveCompleted;
+            RestoreInteractionIfAllowed();
+        }
+
+        protected override void HandleCardFlipped(Card card)
+        {
+            if (!_cardSpawner.TryGetCardView(card, out CardView cardView))
+                return;
+
+            cardView.AnimateFlip(_gameSettings.CardFlipDuration);
+            SetAllCardsInteraction(false);
+
+            cardView.OnCardFlipCompleted += OnCardFlipCompleted;
+        }
+
+        private void OnCardFlipCompleted(CardView cardView)
+        {
+            cardView.OnCardFlipCompleted -= OnCardFlipCompleted;
+            RestoreInteractionIfAllowed();
+        }
+
+        // ==================================================================
+        //  View Event Bus
+        // ==================================================================
 
         private void SubscribeToViewEventBus()
         {
@@ -229,14 +242,14 @@ namespace Solitaire.Presentation.Canvas
                 }
             }
 
-            _dealSequence.AppendCallback(() => OnDealingComplete?.Invoke());
+            _dealSequence.AppendCallback(() => InvokeDealingComplete());
         }
 
         // --- View Event Handlers ---
 
         private void HandleCardClicked(CardView cardView)
         {
-            if (!_canInteract || _isAutoCompleting) return;
+            if (!CanAct) return;
 
             var pile = _game.FindPileForCard(cardView.Model);
 
@@ -252,7 +265,6 @@ namespace Solitaire.Presentation.Canvas
                 if (foundation == pile) continue;
                 if (_game.TryMoveCard(cardView.Model, foundation))
                 {
-                    // Punch effect on the foundation pile view
                     PileView foundationView = _cardSpawner.GetPileView(foundation);
                     AnimatePilePunch(foundationView);
                     return;
@@ -273,7 +285,7 @@ namespace Solitaire.Presentation.Canvas
 
         private void HandleCardDroppedOnPiles(CardView cardView, List<PileView> pilesView)
         {
-            if (!_canInteract || _isAutoCompleting) return;
+            if (!CanAct) return;
 
             var success = false;
             var currentPile = _game.FindPileForCard(cardView.Model);
@@ -284,7 +296,6 @@ namespace Solitaire.Presentation.Canvas
                 success = _game.TryMoveCard(cardView.Model, pileView.Model);
                 if (success)
                 {
-                    // Punch effect when dropping onto a foundation
                     if (pileView.Model is FoundationPile)
                         AnimatePilePunch(pileView);
                     break;
@@ -301,77 +312,10 @@ namespace Solitaire.Presentation.Canvas
             HandleCardMoved(cardView.Model, originPile);
         }
 
-        private void HandleStockClicked()
-        {
-            if (!_canInteract || _isAutoCompleting) return;
-            _game.DrawFromStock();
-        }
-
-        public void HandleUndo()
-        {
-            if (!_canInteract || _isAutoCompleting) return;
-            _game.Undo();
-        }
-
-        public void HandleRedo()
-        {
-            if (!_canInteract || _isAutoCompleting) return;
-            _game.Redo();
-        }
-
-        // --- Model Event Handlers ---
-
-        private void HandleCardMoved(Card card, CardPile newPile)
-        {
-            CardView cardView = _cardSpawner.GetCardView(card);
-            PileView pileView = _cardSpawner.GetPileView(newPile);
-
-            cardView.AnimateMove(pileView, _gameSettings.CardMoveDuration);
-            SetAllCardsInteraction(false);
-
-            cardView.OnCardMoveCompleted += OnCardMoveCompleted;
-        }
-
-        private void OnCardMoveCompleted(CardView cardView)
-        {
-            cardView.OnCardMoveCompleted -= OnCardMoveCompleted;
-            if (_stateAllowsInteraction && !_isAutoCompleting)
-                SetAllCardsInteraction(true);
-        }
-
-        private void HandleCardFlipped(Card card)
-        {
-            if (!_cardSpawner.TryGetCardView(card, out CardView cardView))
-                return;
-
-            cardView.AnimateFlip(_gameSettings.CardFlipDuration);
-            SetAllCardsInteraction(false);
-
-            cardView.OnCardFlipCompleted += OnCardFlipCompleted;
-        }
-
-        private void OnCardFlipCompleted(CardView cardView)
-        {
-            cardView.OnCardFlipCompleted -= OnCardFlipCompleted;
-            if (_stateAllowsInteraction && !_isAutoCompleting)
-                SetAllCardsInteraction(true);
-        }
-
-        private void SetAllCardsInteraction(bool interactable)
-        {
-            _canInteract = interactable;
-            _cardSpawner.SetAllCardsInteraction(interactable);
-        }
-
         // --- Pile Effects ---
 
-        /// <summary>
-        /// Quick punch-scale on a pile's visual children (Image, DottedOutline) only.
-        /// CardsHolder is left untouched so card scales are not affected.
-        /// </summary>
         private void AnimatePilePunch(PileView pileView)
         {
-            // Kill any existing punch on this pile
             if (_pilePunchTweens.TryGetValue(pileView, out Sequence existing))
             {
                 existing?.Kill();
@@ -380,7 +324,6 @@ namespace Solitaire.Presentation.Canvas
 
             pileView.ResetVisualsScale();
 
-            // Capture for closure
             PileView capturedPile = pileView;
             float scale = 1f;
 
@@ -409,7 +352,6 @@ namespace Solitaire.Presentation.Canvas
                 ).SetEase(Ease.InOutQuad)
             );
 
-            // OnKill fires on both manual Kill() and natural completion
             punchSeq.OnKill(() =>
             {
                 capturedPile.ResetVisualsScale();
@@ -419,45 +361,19 @@ namespace Solitaire.Presentation.Canvas
             _pilePunchTweens[pileView] = punchSeq;
         }
 
-        // --- Auto-Complete ---
-
-        private void HandleAutoCompleteClicked()
-        {
-            if (_isAutoCompleting) return;
-            OnAutoCompleteRequested?.Invoke();
-        }
-
-        private IEnumerator AutoCompleteCoroutine()
-        {
-            while (_game.AutoCompleteStep())
-            {
-                yield return new WaitForSeconds(_gameSettings.AutoCompleteStepDelay);
-            }
-            _isAutoCompleting = false;
-        }
-
         // --- Win Screen Handlers ---
 
         private void HandlePlayAgainClicked()
         {
-            OnPlayAgainRequested?.Invoke();
+            InvokePlayAgainRequested();
         }
 
         private void HandleMainMenuClicked()
         {
-            OnMainMenuRequested?.Invoke();
+            InvokeMainMenuRequested();
         }
 
         // --- Cleanup Helpers ---
-
-        private void UnsubscribeFromGame()
-        {
-            if (_game != null)
-            {
-                _game.OnCardMoved -= HandleCardMoved;
-                _game.OnCardFlipped -= HandleCardFlipped;
-            }
-        }
 
         private void UnsubscribeFromWinScreen()
         {
