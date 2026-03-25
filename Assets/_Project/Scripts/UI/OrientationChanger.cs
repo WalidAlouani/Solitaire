@@ -1,45 +1,40 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace Solitaire.UI
 {
-    public class OrientationChanger : MonoBehaviour
+    /// <summary>
+    /// Switches between portrait and landscape layouts when the screen dimensions change.
+    /// Uses OnRectTransformDimensionsChange (event-driven) instead of polling in Update.
+    /// Must live on a GameObject with a RectTransform (e.g. a Canvas).
+    /// </summary>
+    public class OrientationChanger : UIBehaviour
     {
         [SerializeField] private GameObject _portraitLayout;
         [SerializeField] private GameObject _landscapeLayout;
 
-        private ScreenOrientation _lastOrientation;
+        private bool _isPortrait;
 
-        private void Start()
+        protected override void Start()
         {
-            _lastOrientation = Screen.orientation;
-            HandleOrientationChange(_lastOrientation);
+            base.Start();
+            _isPortrait = Screen.height >= Screen.width;
+            ApplyLayout(_isPortrait);
         }
 
-        private void Update()
+        protected override void OnRectTransformDimensionsChange()
         {
-            if (Screen.orientation != _lastOrientation)
-            {
-                HandleOrientationChange(Screen.orientation);
-                _lastOrientation = Screen.orientation;
-            }
+            bool portrait = Screen.height >= Screen.width;
+            if (portrait == _isPortrait) return;
+
+            _isPortrait = portrait;
+            ApplyLayout(_isPortrait);
         }
 
-        private void HandleOrientationChange(ScreenOrientation newOrientation)
+        private void ApplyLayout(bool portrait)
         {
-            switch (newOrientation)
-            {
-                case ScreenOrientation.Portrait:
-                case ScreenOrientation.PortraitUpsideDown:
-                    _portraitLayout.SetActive(true);
-                    _landscapeLayout.SetActive(false);
-                    break;
-
-                case ScreenOrientation.LandscapeLeft:
-                case ScreenOrientation.LandscapeRight:
-                    _portraitLayout.SetActive(false);
-                    _landscapeLayout.SetActive(true);
-                    break;
-            }
+            _portraitLayout.SetActive(portrait);
+            _landscapeLayout.SetActive(!portrait);
         }
     }
 }
