@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e606a138037f3fe4dbcc357441920485, type: 3}
+  m_Name: SoundLibrary
+  m_EditorClassIdentifier: 
+  CardFlip: {fileID: 11400000, guid: b5637858917f9444d8d29a4122a3cde1, type: 2}
+  CardPlace: {fileID: 11400000, guid: fd690bd383bc5eb4482a04423fd76e72, type: 2}
+  CardDeal: {fileID: 11400000, guid: 3453a2c564c1ad14ba83ffc35ff11579, type: 2}
+  CardDraw: {fileID: 11400000, guid: ec3965fa2ae16e34b9e5b6990a860a8c, type: 2}
+  CardInvalidMove: {fileID: 11400000, guid: dce43b2e67e81c14b9cecac73821c7fc, type: 2}
+  WinFanfare: {fileID: 11400000, guid: 6870f4551b7a0a34f834dadc5519466d, type: 2}
+  AutoCompleteStep: {fileID: 11400000, guid: 339ae4cf567387845b0899d1093fe626, type: 2}
+  ButtonClick: {fileID: 11400000, guid: 851de9dc6839b694daae5b7dadb0f24e, type: 2}
+  ButtonHover: {fileID: 11400000, guid: 7f3f6ac0e7bc36d49a327b35b27b9c23, type: 2}
+  MenuMusic: {fileID: 0}
+  GameMusic: {fileID: 0}

@@ -2,14 +2,13 @@ using Solitaire.Application;
 using Solitaire.Domain;
 using Solitaire.Domain.Piles;
 using System;
-using System.Collections;
 using UnityEngine;
 
 namespace Solitaire.Presentation
 {
     /// <summary>
     /// Abstract base for all IGameUI implementations.
-    /// Owns shared state (game model, interaction flags, auto-complete)
+    /// Owns shared state (game model, interaction flags)
     /// and provides template methods for the presenter lifecycle.
     /// Subclasses implement only the visual/animation-specific logic.
     /// </summary>
@@ -21,7 +20,6 @@ namespace Solitaire.Presentation
         protected Game _game;
         protected bool _canInteract;
         protected bool _stateAllowsInteraction;
-        protected bool _isAutoCompleting;
 
         // --- IGameUI Events ---
 
@@ -30,7 +28,16 @@ namespace Solitaire.Presentation
         public event Action OnMainMenuRequested;
         public event Action OnAutoCompleteRequested;
 
+        // --- Presenter Events (for audio, haptics, analytics, etc.) ---
+
+        public event Action OnDealCardAnimated;
+        public event Action OnInvalidMoveAttempted;
+        public event Action OnAutoCompleteStepPerformed;
+
+        // --- Properties ---
+
         public Game Game => _game;
+        public GameSettingsSO GameSettings => _gameSettings;
 
         // ==================================================================
         //  IGameUI — Template Method Implementations
@@ -42,7 +49,6 @@ namespace Solitaire.Presentation
             BeforeStartGame();
 
             _game = game;
-            _isAutoCompleting = false;
 
             SetupAndSpawn();
 
@@ -55,7 +61,6 @@ namespace Solitaire.Presentation
         public void Cleanup()
         {
             StopAllCoroutines();
-            _isAutoCompleting = false;
             _stateAllowsInteraction = false;
 
             UnsubscribeFromGame();
@@ -69,13 +74,6 @@ namespace Solitaire.Presentation
             SetAllCardsInteraction(interactable);
         }
 
-        public void RunAutoComplete()
-        {
-            _isAutoCompleting = true;
-            SetAllCardsInteraction(false);
-            StartCoroutine(AutoCompleteCoroutine());
-        }
-
         public abstract void ShowWinScreen();
         public abstract void ShowAutoCompleteButton();
         public abstract void HideAutoCompleteButton();
@@ -84,51 +82,19 @@ namespace Solitaire.Presentation
         //  Abstract — Presenter-Specific Hooks
         // ==================================================================
 
-        /// <summary>
-        /// Called before _game is assigned. Unsubscribe from presenter-specific
-        /// events, tear down previous state, etc.
-        /// </summary>
         protected abstract void BeforeStartGame();
-
-        /// <summary>
-        /// Bind piles, spawn cards, call PopulateTableauPiles.
-        /// _game is already set when this runs.
-        /// </summary>
         protected abstract void SetupAndSpawn();
-
-        /// <summary>
-        /// Kick off the deal animation. Invoke <see cref="InvokeDealingComplete"/>
-        /// when the animation finishes.
-        /// </summary>
         protected abstract void StartDealAnimation();
-
-        /// <summary>
-        /// Presenter-specific cleanup: kill tweens, destroy views,
-        /// unsubscribe from UI events, hide overlays.
-        /// Flags and game event unsubscription are already handled by the base.
-        /// </summary>
         protected abstract void CleanupPresenter();
-
-        /// <summary>
-        /// Toggle interaction on all card views.
-        /// </summary>
         protected abstract void SetAllCardsInteraction(bool interactable);
-
-        /// <summary>
-        /// Animate a card moving to a new pile.
-        /// </summary>
         protected abstract void HandleCardMoved(Card card, CardPile newPile);
-
-        /// <summary>
-        /// Animate a card flip.
-        /// </summary>
         protected abstract void HandleCardFlipped(Card card);
 
         // ==================================================================
         //  Shared — Interaction Guards
         // ==================================================================
 
-        protected bool CanAct => _canInteract && !_isAutoCompleting;
+        protected bool CanAct => _canInteract;
 
         protected void HandleStockClicked()
         {
@@ -150,7 +116,6 @@ namespace Solitaire.Presentation
 
         protected void HandleAutoCompleteClicked()
         {
-            if (_isAutoCompleting) return;
             OnAutoCompleteRequested?.Invoke();
         }
 
@@ -161,27 +126,18 @@ namespace Solitaire.Presentation
         protected void InvokeDealingComplete() => OnDealingComplete?.Invoke();
         protected void InvokePlayAgainRequested() => OnPlayAgainRequested?.Invoke();
         protected void InvokeMainMenuRequested() => OnMainMenuRequested?.Invoke();
+        protected void InvokeDealCardAnimated() => OnDealCardAnimated?.Invoke();
+        protected void InvokeInvalidMoveAttempted() => OnInvalidMoveAttempted?.Invoke();
+        protected void InvokeAutoCompleteStepPerformed() => OnAutoCompleteStepPerformed?.Invoke();
 
         // ==================================================================
         //  Shared — Helpers
         // ==================================================================
 
-        /// <summary>
-        /// Re-enables card interaction after an animation completes,
-        /// but only if the current game state still allows it.
-        /// </summary>
         protected void RestoreInteractionIfAllowed()
         {
-            if (_stateAllowsInteraction && !_isAutoCompleting)
+            if (_stateAllowsInteraction)
                 SetAllCardsInteraction(true);
-        }
-
-        private IEnumerator AutoCompleteCoroutine()
-        {
-            while (_game.AutoCompleteStep())
-                yield return new WaitForSeconds(_gameSettings.AutoCompleteStepDelay);
-
-            _isAutoCompleting = false;
         }
 
         protected void UnsubscribeFromGame()

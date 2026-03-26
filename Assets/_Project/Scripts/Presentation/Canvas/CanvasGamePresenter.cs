@@ -12,7 +12,7 @@ namespace Solitaire.Presentation.Canvas
     /// <summary>
     /// Canvas/uGUI implementation of IGameUI.
     /// Handles card animations, drag-and-drop, and visual state.
-    /// Flow decisions (dealing → playing → win) are driven by game states.
+    /// Flow decisions (dealing -> playing -> win) are driven by game states.
     /// </summary>
     public class CanvasGamePresenter : GamePresenterBase
     {
@@ -238,6 +238,8 @@ namespace Solitaire.Presentation.Canvas
                         cardView.AnimateMove(pileView, _gameSettings.DealCardDuration);
                         if (shouldFlip)
                             cardView.AnimateFlip(_gameSettings.CardFlipDuration);
+
+                        InvokeDealCardAnimated();
                     });
                 }
             }
@@ -279,8 +281,9 @@ namespace Solitaire.Presentation.Canvas
                     return;
             }
 
-            // No valid move found — shake the card
+            // No valid move found
             cardView.AnimateShake();
+            InvokeInvalidMoveAttempted();
         }
 
         private void HandleCardDroppedOnPiles(CardView cardView, List<PileView> pilesView)
@@ -303,7 +306,10 @@ namespace Solitaire.Presentation.Canvas
             }
 
             if (!success)
+            {
                 HandleCardDragFailed(cardView);
+                InvokeInvalidMoveAttempted();
+            }
         }
 
         private void HandleCardDragFailed(CardView cardView)

@@ -41,6 +41,10 @@ namespace Solitaire.Presentation.Canvas
         private Sequence _flipSequence;
         private Sequence _shakeSequence;
 
+        // Cached resting position for _frontImage so shake can always reset cleanly
+        private Vector2 _frontImageRestPosition;
+        private bool _frontImageRestCached;
+
         // This must be set by the spawner on creation
         public Transform TopLevelCanvasTransform { get; set; }
 
@@ -265,11 +269,21 @@ namespace Solitaire.Presentation.Canvas
         /// </summary>
         public void AnimateShake(float duration = 0.3f, float strength = 15f)
         {
-            _shakeSequence?.Kill();
             var rectTransform = _frontImage.rectTransform;
 
-            Vector2 origin = rectTransform.anchoredPosition;
+            // Cache the resting position once, then always reset to it before starting
+            if (!_frontImageRestCached)
+            {
+                _frontImageRestPosition = rectTransform.anchoredPosition;
+                _frontImageRestCached = true;
+            }
+
+            // Kill any in-progress shake and force-reset to resting position
+            _shakeSequence?.Kill();
+            rectTransform.anchoredPosition = _frontImageRestPosition;
+
             float shakeStep = duration / 6f;
+            Vector2 origin = _frontImageRestPosition;
 
             _shakeSequence = DOTween.Sequence();
 
@@ -289,6 +303,10 @@ namespace Solitaire.Presentation.Canvas
             _moveSequence?.Kill();
             _flipSequence?.Kill();
             _shakeSequence?.Kill();
+
+            // Ensure front image is reset if shake was active
+            if (_frontImageRestCached && _frontImage != null)
+                _frontImage.rectTransform.anchoredPosition = _frontImageRestPosition;
         }
 
         // --- Physics Trigger Events ---

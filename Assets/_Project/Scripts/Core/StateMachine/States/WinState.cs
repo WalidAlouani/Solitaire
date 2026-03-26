@@ -8,36 +8,36 @@ namespace Solitaire.Core.StateMachine
     /// </summary>
     public class WinState : IGameState
     {
-        private readonly GameManager _gameManager;
+        private readonly IGameContext _context;
 
-        public WinState(GameManager gameManager)
+        public WinState(IGameContext context)
         {
-            _gameManager = gameManager;
+            _context = context;
         }
 
         public void Enter()
         {
-            _gameManager.GameUI.ShowWinScreen();
-            _gameManager.GameUI.OnPlayAgainRequested += HandlePlayAgain;
-            _gameManager.GameUI.OnMainMenuRequested += HandleMainMenu;
+            _context.GameUI.ShowWinScreen();
+            _context.GameUI.OnPlayAgainRequested += HandlePlayAgain;
+            _context.GameUI.OnMainMenuRequested += HandleMainMenu;
         }
 
         public void Update() { }
 
         public void Exit()
         {
-            _gameManager.GameUI.OnPlayAgainRequested -= HandlePlayAgain;
-            _gameManager.GameUI.OnMainMenuRequested -= HandleMainMenu;
+            _context.GameUI.OnPlayAgainRequested -= HandlePlayAgain;
+            _context.GameUI.OnMainMenuRequested -= HandleMainMenu;
         }
 
         private void HandlePlayAgain()
         {
-            _gameManager.StateManager.ChangeState<DealingState>();
+            _context.StateManager.ChangeState<DealingState>();
         }
 
         private void HandleMainMenu()
         {
-            SceneManager.LoadScene(_gameManager.MainMenuSceneName);
+            SceneManager.LoadScene(_context.MainMenuSceneName);
         }
     }
 }

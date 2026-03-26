@@ -7,33 +7,33 @@ namespace Solitaire.Core.StateMachine
     /// </summary>
     public class DealingState : IGameState
     {
-        private readonly GameManager _gameManager;
+        private readonly IGameContext _context;
 
-        public DealingState(GameManager gameManager)
+        public DealingState(IGameContext context)
         {
-            _gameManager = gameManager;
+            _context = context;
         }
 
         public void Enter()
         {
-            _gameManager.GameUI.Cleanup();
+            _context.GameUI.Cleanup();
 
-            var game = _gameManager.CreateNewGame();
+            var game = _context.CreateNewGame();
 
-            _gameManager.GameUI.OnDealingComplete += HandleDealingComplete;
-            _gameManager.GameUI.StartGame(game);
+            _context.GameUI.OnDealingComplete += HandleDealingComplete;
+            _context.GameUI.StartGame(game);
         }
 
         public void Update() { }
 
         public void Exit()
         {
-            _gameManager.GameUI.OnDealingComplete -= HandleDealingComplete;
+            _context.GameUI.OnDealingComplete -= HandleDealingComplete;
         }
 
         private void HandleDealingComplete()
         {
-            _gameManager.StateManager.ChangeState<PlayingState>();
+            _context.StateManager.ChangeState<PlayingState>();
         }
     }
 }

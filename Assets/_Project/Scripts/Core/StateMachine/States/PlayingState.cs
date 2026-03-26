@@ -3,59 +3,58 @@ namespace Solitaire.Core.StateMachine
     /// <summary>
     /// Active gameplay state. Enables card interaction, listens for
     /// game-won and auto-complete events, and drives transitions
-    /// to WinState when the player completes all foundations.
+    /// to WinState or AutoCompleteState.
     /// </summary>
     public class PlayingState : IGameState
     {
-        private readonly GameManager _gameManager;
+        private readonly IGameContext _context;
 
-        public PlayingState(GameManager manager)
+        public PlayingState(IGameContext context)
         {
-            _gameManager = manager;
+            _context = context;
         }
 
         public void Enter()
         {
-            _gameManager.GameUI.SetInteractable(true);
+            _context.GameUI.SetInteractable(true);
 
-            _gameManager.Game.OnGameWon += HandleGameWon;
-            _gameManager.Game.OnAutoCompleteChanged += HandleAutoCompleteChanged;
-            _gameManager.GameUI.OnAutoCompleteRequested += HandleAutoCompleteRequested;
+            _context.Game.OnGameWon += HandleGameWon;
+            _context.Game.OnAutoCompleteChanged += HandleAutoCompleteChanged;
+            _context.GameUI.OnAutoCompleteRequested += HandleAutoCompleteRequested;
 
             // Auto-complete might already be available on enter (edge case)
-            if (_gameManager.Game.CanAutoComplete())
-                _gameManager.GameUI.ShowAutoCompleteButton();
+            if (_context.Game.CanAutoComplete())
+                _context.GameUI.ShowAutoCompleteButton();
         }
 
         public void Update() { }
 
         public void Exit()
         {
-            _gameManager.Game.OnGameWon -= HandleGameWon;
-            _gameManager.Game.OnAutoCompleteChanged -= HandleAutoCompleteChanged;
-            _gameManager.GameUI.OnAutoCompleteRequested -= HandleAutoCompleteRequested;
+            _context.Game.OnGameWon -= HandleGameWon;
+            _context.Game.OnAutoCompleteChanged -= HandleAutoCompleteChanged;
+            _context.GameUI.OnAutoCompleteRequested -= HandleAutoCompleteRequested;
 
-            _gameManager.GameUI.HideAutoCompleteButton();
-            _gameManager.GameUI.SetInteractable(false);
+            _context.GameUI.HideAutoCompleteButton();
+            _context.GameUI.SetInteractable(false);
         }
 
         private void HandleGameWon()
         {
-            _gameManager.StateManager.ChangeState<WinState>();
+            _context.StateManager.ChangeState<WinState>();
         }
 
         private void HandleAutoCompleteChanged(bool available)
         {
             if (available)
-                _gameManager.GameUI.ShowAutoCompleteButton();
+                _context.GameUI.ShowAutoCompleteButton();
             else
-                _gameManager.GameUI.HideAutoCompleteButton();
+                _context.GameUI.HideAutoCompleteButton();
         }
 
         private void HandleAutoCompleteRequested()
         {
-            _gameManager.GameUI.HideAutoCompleteButton();
-            _gameManager.GameUI.RunAutoComplete();
+            _context.StateManager.ChangeState<AutoCompleteState>();
         }
     }
 }

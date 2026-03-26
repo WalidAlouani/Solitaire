@@ -2664,6 +2664,7 @@ GameObject:
   - component: {fileID: 768364873}
   - component: {fileID: 768364872}
   - component: {fileID: 768364875}
+  - component: {fileID: 768364876}
   m_Layer: 5
   m_Name: Btn_Leaderboard
   m_TagString: Untagged
@@ -2788,6 +2789,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _portraitParent: {fileID: 981639027}
   _landscapeParent: {fileID: 445617515}
+--- !u!114 &768364876
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 768364870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e66eb3024c0b443aedbbd1fbbaa41f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _audioService: {fileID: 11400000, guid: 1f0a9398cea660e4fa551c3a824ebc49, type: 2}
+  _clickSound: {fileID: 11400000, guid: 851de9dc6839b694daae5b7dadb0f24e, type: 2}
 --- !u!1 &768559473
 GameObject:
   m_ObjectHideFlags: 0
@@ -2951,6 +2966,7 @@ GameObject:
   - component: {fileID: 807844521}
   - component: {fileID: 807844520}
   - component: {fileID: 807844523}
+  - component: {fileID: 807844524}
   m_Layer: 5
   m_Name: Btn_NewGame
   m_TagString: Untagged
@@ -3074,6 +3090,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _portraitParent: {fileID: 2021250355}
   _landscapeParent: {fileID: 313979378}
+--- !u!114 &807844524
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 807844518}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e66eb3024c0b443aedbbd1fbbaa41f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _audioService: {fileID: 11400000, guid: 1f0a9398cea660e4fa551c3a824ebc49, type: 2}
+  _clickSound: {fileID: 11400000, guid: 851de9dc6839b694daae5b7dadb0f24e, type: 2}
 --- !u!1 &809156714
 GameObject:
   m_ObjectHideFlags: 0
@@ -3374,6 +3404,63 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 876363971}
   m_CullTransparentMesh: 1
+--- !u!1001 &909480899
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 300944355468895857, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 300944355468895857, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 300944355468895857, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 300944355468895857, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 300944355468895857, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 300944355468895857, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 300944355468895857, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 300944355468895857, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 300944355468895857, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 300944355468895857, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 511088043130693244, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
+      propertyPath: m_Name
+      value: AudioPlayer
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 7b618f6770f07fd4b9d4b3134353cc94, type: 3}
 --- !u!1 &927122682
 GameObject:
   m_ObjectHideFlags: 0
@@ -3918,6 +4005,7 @@ GameObject:
   - component: {fileID: 1107187274}
   - component: {fileID: 1107187273}
   - component: {fileID: 1107187276}
+  - component: {fileID: 1107187277}
   m_Layer: 5
   m_Name: Btn_Settings
   m_TagString: Untagged
@@ -4042,6 +4130,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _portraitParent: {fileID: 981639027}
   _landscapeParent: {fileID: 445617515}
+--- !u!114 &1107187277
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1107187271}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e66eb3024c0b443aedbbd1fbbaa41f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _audioService: {fileID: 11400000, guid: 1f0a9398cea660e4fa551c3a824ebc49, type: 2}
+  _clickSound: {fileID: 11400000, guid: 851de9dc6839b694daae5b7dadb0f24e, type: 2}
 --- !u!1 &1113200115
 GameObject:
   m_ObjectHideFlags: 0
@@ -4189,6 +4291,7 @@ GameObject:
   - component: {fileID: 1197585202}
   - component: {fileID: 1197585201}
   - component: {fileID: 1197585204}
+  - component: {fileID: 1197585205}
   m_Layer: 5
   m_Name: Btn_X
   m_TagString: Untagged
@@ -4313,6 +4416,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _portraitParent: {fileID: 981639027}
   _landscapeParent: {fileID: 1964746792}
+--- !u!114 &1197585205
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1197585199}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e66eb3024c0b443aedbbd1fbbaa41f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _audioService: {fileID: 11400000, guid: 1f0a9398cea660e4fa551c3a824ebc49, type: 2}
+  _clickSound: {fileID: 11400000, guid: 851de9dc6839b694daae5b7dadb0f24e, type: 2}
 --- !u!1 &1200483926
 GameObject:
   m_ObjectHideFlags: 0
@@ -4668,6 +4785,7 @@ GameObject:
   - component: {fileID: 1312001371}
   - component: {fileID: 1312001370}
   - component: {fileID: 1312001373}
+  - component: {fileID: 1312001374}
   m_Layer: 5
   m_Name: Btn_Continue
   m_TagString: Untagged
@@ -4791,6 +4909,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _portraitParent: {fileID: 728815012}
   _landscapeParent: {fileID: 715752439}
+--- !u!114 &1312001374
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1312001368}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e66eb3024c0b443aedbbd1fbbaa41f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _audioService: {fileID: 11400000, guid: 1f0a9398cea660e4fa551c3a824ebc49, type: 2}
+  _clickSound: {fileID: 11400000, guid: 851de9dc6839b694daae5b7dadb0f24e, type: 2}
 --- !u!1 &1315976670
 GameObject:
   m_ObjectHideFlags: 0
@@ -5799,6 +5931,7 @@ GameObject:
   - component: {fileID: 1722810208}
   - component: {fileID: 1722810207}
   - component: {fileID: 1722810210}
+  - component: {fileID: 1722810211}
   m_Layer: 5
   m_Name: Btn_Info
   m_TagString: Untagged
@@ -5923,6 +6056,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _portraitParent: {fileID: 981639027}
   _landscapeParent: {fileID: 1964746792}
+--- !u!114 &1722810211
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1722810205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e66eb3024c0b443aedbbd1fbbaa41f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _audioService: {fileID: 11400000, guid: 1f0a9398cea660e4fa551c3a824ebc49, type: 2}
+  _clickSound: {fileID: 11400000, guid: 851de9dc6839b694daae5b7dadb0f24e, type: 2}
 --- !u!1 &1730240092
 GameObject:
   m_ObjectHideFlags: 0
@@ -6977,3 +7124,4 @@ SceneRoots:
   - {fileID: 519420032}
   - {fileID: 1250361643}
   - {fileID: 16886924}
+  - {fileID: 909480899}

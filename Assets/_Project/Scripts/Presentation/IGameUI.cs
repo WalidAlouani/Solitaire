@@ -19,6 +19,10 @@ namespace Solitaire.Presentation
         event Action OnMainMenuRequested;
         event Action OnAutoCompleteRequested;
 
+        // --- Settings ---
+
+        GameSettingsSO GameSettings { get; }
+
         // --- Methods called by states ---
 
         /// <summary>
@@ -35,11 +39,6 @@ namespace Solitaire.Presentation
 
         void ShowAutoCompleteButton();
         void HideAutoCompleteButton();
-
-        /// <summary>
-        /// Begin the auto-complete coroutine (moves cards to foundations one by one).
-        /// </summary>
-        void RunAutoComplete();
 
         /// <summary>
         /// Master interaction toggle controlled by states.

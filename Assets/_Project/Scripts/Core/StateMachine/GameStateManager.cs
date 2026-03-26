@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace Solitaire.Core.StateMachine
 {
@@ -9,30 +8,32 @@ namespace Solitaire.Core.StateMachine
         private IGameState _currentState;
         private readonly Dictionary<Type, IGameState> _states = new();
 
+        public IGameState CurrentState => _currentState;
+
         public void RegisterState(IGameState state)
         {
             _states[state.GetType()] = state;
         }
 
-        public void ChangeState<T>() where T : IGameState
+        public bool ChangeState<T>() where T : IGameState
         {
-            if (_currentState != null)
-                _currentState.Exit();
+            if (!_states.TryGetValue(typeof(T), out var nextState))
+                return false;
 
-            if (_states.TryGetValue(typeof(T), out var nextState))
-            {
-                _currentState = nextState;
-                _currentState.Enter();
-            }
-            else
-            {
-                Debug.LogError($"State {typeof(T).Name} not registered!");
-            }
+            _currentState?.Exit();
+            _currentState = nextState;
+            _currentState.Enter();
+            return true;
         }
 
         public void Tick()
         {
             _currentState?.Update();
+        }
+
+        public bool IsInState<T>() where T : IGameState
+        {
+            return _currentState is T;
         }
     }
 }
