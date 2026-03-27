@@ -1,0 +1,157 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: UISpriteAtlas
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 0
+      compressionQuality: 0
+      maxTextureSize: 0
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: Android
+      m_MaxTextureSize: 2048
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: 50
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 1
+      m_IgnorePlatformSupport: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    packingSettings:
+      serializedVersion: 2
+      padding: 2
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+      enableAlphaDilation: 0
+    secondaryTextureSettings: {}
+    variantMultiplier: 1
+    packables:
+    - {fileID: 102900000, guid: e654bc93b79cad84e9e450b3aa163f7e, type: 3}
+    bindAsDefault: 1
+    isAtlasV2: 0
+    cachedData: {fileID: 0}
+    packedSpriteRenderDataKeys:
+    - 69c8664080b77864cb4f26b33c3f2b39: 21300000
+    - bb5ac6b0820587945969b429f4bc9917: 21300000
+    - 335edcd00516eda4bb152c58fd813e1a: -184249963
+    - 7f6bd911c1c8a6c46ac8df3bef9cdc13: 21300000
+    - dedc1921e9111984d865aac10b31accf: 118472889
+    - 56062ad169a01134e8ab443baa14401d: 21300000
+    - caa7cf838d617354dac0f608eee846c1: 21300000
+    - d526d2a3968a9b14da507a48901f62b8: 21300000
+    - 87fed7d336a97624abe99a617d3beb05: 21300000
+    - 07c64ae40c5448f4294513171a1d1ae8: 21300000
+    - 44eb0c959f077f542871a91e6651f6b3: 21300000
+    - 2448eaa561123c545951aa4d29bf0dbf: 21300000
+    - 74d711d5a48a152488c2bd6da82a8769: 21300000
+    - a95341660dcffb44da429af32aad49bb: 21300000
+    - 5cb61ec65fa6b6b4b86cf1624d9a42a4: 21300000
+    - 532cf1d6dbfedd740bf2c9d14b3ff16c: 21300000
+    - db5e3717dfd4ae24384b740366b5c4b4: 21300000
+    - 1cf4a227595e7dc4e9db42ea61c8c155: 21300000
+    - 25903347c1dd518408bc8c77b299ffcd: 21300000
+    - ac162787e117ce54884acd9654e385b5: 21300000
+    - 7bedb6f7ca7e86a479e56846766feedf: 21300000
+    - 6c4cf0980ac105b4583327b0a3518db2: 21300000
+    - 239952e85d629df47acd3fcf77fd4bff: 21300000
+    - 1327244ac68d2ad488f20bbf6087dbde: 21300000
+    - efa8e9ca7d61cb441a4996babcf41eaa: 21300000
+    - 0dc8b9dc997278c44b27de66e4514737: 21300000
+    - 9c1f811ec3ab2c547a9d4d9bb777088e: 21300000
+    - bf8b068eec387744ab13ccf911d85e58: 21300000
+    - 8317a1ce939221a4f82f72953de73da6: 21300000
+    - 0bef4afe146ef014a92ef106ca5e627a: 21300000
+    - b64f271f8c71f4b49b9c7e54b17451b0: 21300000
+    - 3b5241affbd0e5a48ab1ec53b3e7217c: 21300000
+    - 06efe7cf6eee46b4fa80b06daccbcf48: 21300000
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: 21300000, guid: 69c8664080b77864cb4f26b33c3f2b39, type: 3}
+  - {fileID: 21300000, guid: bb5ac6b0820587945969b429f4bc9917, type: 3}
+  - {fileID: -184249963, guid: 335edcd00516eda4bb152c58fd813e1a, type: 3}
+  - {fileID: 21300000, guid: 7f6bd911c1c8a6c46ac8df3bef9cdc13, type: 3}
+  - {fileID: 118472889, guid: dedc1921e9111984d865aac10b31accf, type: 3}
+  - {fileID: 21300000, guid: 56062ad169a01134e8ab443baa14401d, type: 3}
+  - {fileID: 21300000, guid: caa7cf838d617354dac0f608eee846c1, type: 3}
+  - {fileID: 21300000, guid: d526d2a3968a9b14da507a48901f62b8, type: 3}
+  - {fileID: 21300000, guid: 87fed7d336a97624abe99a617d3beb05, type: 3}
+  - {fileID: 21300000, guid: 07c64ae40c5448f4294513171a1d1ae8, type: 3}
+  - {fileID: 21300000, guid: 44eb0c959f077f542871a91e6651f6b3, type: 3}
+  - {fileID: 21300000, guid: 2448eaa561123c545951aa4d29bf0dbf, type: 3}
+  - {fileID: 21300000, guid: 74d711d5a48a152488c2bd6da82a8769, type: 3}
+  - {fileID: 21300000, guid: a95341660dcffb44da429af32aad49bb, type: 3}
+  - {fileID: 21300000, guid: 5cb61ec65fa6b6b4b86cf1624d9a42a4, type: 3}
+  - {fileID: 21300000, guid: 532cf1d6dbfedd740bf2c9d14b3ff16c, type: 3}
+  - {fileID: 21300000, guid: db5e3717dfd4ae24384b740366b5c4b4, type: 3}
+  - {fileID: 21300000, guid: 1cf4a227595e7dc4e9db42ea61c8c155, type: 3}
+  - {fileID: 21300000, guid: 25903347c1dd518408bc8c77b299ffcd, type: 3}
+  - {fileID: 21300000, guid: ac162787e117ce54884acd9654e385b5, type: 3}
+  - {fileID: 21300000, guid: 7bedb6f7ca7e86a479e56846766feedf, type: 3}
+  - {fileID: 21300000, guid: 6c4cf0980ac105b4583327b0a3518db2, type: 3}
+  - {fileID: 21300000, guid: 239952e85d629df47acd3fcf77fd4bff, type: 3}
+  - {fileID: 21300000, guid: 1327244ac68d2ad488f20bbf6087dbde, type: 3}
+  - {fileID: 21300000, guid: efa8e9ca7d61cb441a4996babcf41eaa, type: 3}
+  - {fileID: 21300000, guid: 0dc8b9dc997278c44b27de66e4514737, type: 3}
+  - {fileID: 21300000, guid: 9c1f811ec3ab2c547a9d4d9bb777088e, type: 3}
+  - {fileID: 21300000, guid: bf8b068eec387744ab13ccf911d85e58, type: 3}
+  - {fileID: 21300000, guid: 8317a1ce939221a4f82f72953de73da6, type: 3}
+  - {fileID: 21300000, guid: 0bef4afe146ef014a92ef106ca5e627a, type: 3}
+  - {fileID: 21300000, guid: b64f271f8c71f4b49b9c7e54b17451b0, type: 3}
+  - {fileID: 21300000, guid: 3b5241affbd0e5a48ab1ec53b3e7217c, type: 3}
+  - {fileID: 21300000, guid: 06efe7cf6eee46b4fa80b06daccbcf48, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - open-options
+  - button-rectangle
+  - Schermata 2014-11-05 alle 12.12.58_0
+  - X esc
+  - Schermata 2014-11-05 alle 12.12.44_0
+  - spades
+  - example
+  - hints
+  - options-choice
+  - x
+  - options-bar
+  - button_continue
+  - star
+  - deck1
+  - diamonds
+  - game-title
+  - hearts
+  - new-game
+  - home
+  - button-round
+  - deck2
+  - undo
+  - leaderboard
+  - facebook
+  - dark-background
+  - i
+  - button_newgame
+  - podium
+  - options-background
+  - clubs
+  - options
+  - dollar
+  - selection-background
+  m_RenderDataMap: {}
+  m_Tag: UISpriteAtlas
+  m_IsVariant: 0
