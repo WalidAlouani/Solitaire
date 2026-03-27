@@ -19,10 +19,18 @@ namespace Solitaire.Presentation.Canvas
         private readonly Dictionary<Card, CardView> _cardViewMap = new Dictionary<Card, CardView>();
         private readonly Dictionary<CardPile, PileView> _pileViewMap = new Dictionary<CardPile, PileView>();
 
+        // Cached flat list of all PileViews for overlap queries (avoids allocating on every drag)
+        private readonly List<PileView> _allPileViews = new List<PileView>();
+
         private ViewEventBus _eventBus;
 
         public IReadOnlyDictionary<Card, CardView> CardViewMap => _cardViewMap;
         public IReadOnlyDictionary<CardPile, PileView> PileViewMap => _pileViewMap;
+
+        /// <summary>
+        /// All registered PileViews. Used by CardView for RectTransform overlap checks during drag.
+        /// </summary>
+        public IReadOnlyList<PileView> AllPileViews => _allPileViews;
 
         public void SetEventBus(ViewEventBus eventBus)
         {
@@ -32,6 +40,9 @@ namespace Solitaire.Presentation.Canvas
         public void RegisterPileMapping(CardPile model, PileView view)
         {
             _pileViewMap[model] = view;
+
+            if (!_allPileViews.Contains(view))
+                _allPileViews.Add(view);
         }
 
         public CardView SpawnCard(Card cardModel, PileView pileView)
@@ -40,6 +51,7 @@ namespace Solitaire.Presentation.Canvas
 
             cardView.Initialize(cardModel, _cardTheme);
             cardView.SetEventBus(_eventBus);
+            cardView.SetCardSpawner(this);
             cardView.TopLevelCanvasTransform = _topLevelCanvas;
 
             _cardViewMap[cardModel] = cardView;
@@ -96,12 +108,14 @@ namespace Solitaire.Presentation.Canvas
 
             _cardViewMap.Clear();
             _pileViewMap.Clear();
+            _allPileViews.Clear();
         }
 
         public void Clear()
         {
             _cardViewMap.Clear();
             _pileViewMap.Clear();
+            _allPileViews.Clear();
         }
     }
 }

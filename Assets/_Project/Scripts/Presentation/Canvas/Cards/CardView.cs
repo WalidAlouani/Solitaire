@@ -9,7 +9,7 @@ using UnityEngine.UI;
 
 namespace Solitaire.Presentation.Canvas
 {
-    [RequireComponent(typeof(RectTransform), typeof(CanvasGroup), typeof(Collider2D))]
+    [RequireComponent(typeof(RectTransform), typeof(CanvasGroup))]
     public class CardView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         public Card Model { get; private set; }
@@ -25,10 +25,12 @@ namespace Solitaire.Presentation.Canvas
         // Cached components
         private RectTransform _rectTransform;
         private CanvasGroup _canvasGroup;
-        private Collider2D _collider;
 
         // Injected event bus (replaces static GameEvents)
         private ViewEventBus _eventBus;
+
+        // Reference to spawner for pile overlap queries
+        private CardSpawner _cardSpawner;
 
         // State
         private Transform _originalParent;
@@ -55,7 +57,6 @@ namespace Solitaire.Presentation.Canvas
         {
             _rectTransform = GetComponent<RectTransform>();
             _canvasGroup = GetComponent<CanvasGroup>();
-            _collider = GetComponent<Collider2D>();
         }
 
         private void OnDestroy()
@@ -70,6 +71,15 @@ namespace Solitaire.Presentation.Canvas
         public void SetEventBus(ViewEventBus eventBus)
         {
             _eventBus = eventBus;
+        }
+
+        /// <summary>
+        /// Injects the CardSpawner reference for pile overlap queries during drag.
+        /// Must be called by CardSpawner immediately after instantiation.
+        /// </summary>
+        public void SetCardSpawner(CardSpawner spawner)
+        {
+            _cardSpawner = spawner;
         }
 
         public void Initialize(Card model, CardThemeSO theme)
@@ -135,7 +145,6 @@ namespace Solitaire.Presentation.Canvas
             transform.SetAsLastSibling();
 
             _canvasGroup.blocksRaycasts = false;
-            _collider.enabled = true;
 
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 _rectTransform,
@@ -165,15 +174,51 @@ namespace Solitaire.Presentation.Canvas
 
             _canvasGroup.blocksRaycasts = true;
 
-            // Collect overlapping pile views without LINQ
-            var piles = new List<PileView>(_overlappingZones.Count);
-            for (int i = 0; i < _overlappingZones.Count; i++)
-                piles.Add(_overlappingZones[i].PileView);
+            // Find overlapping piles via RectTransform bounds check (no physics needed)
+            var piles = FindOverlappingPiles();
 
             _eventBus.RaiseCardDroppedOnPiles(this, piles);
 
-            _collider.enabled = false;
             _isDragging = false;
+        }
+
+        // --- RectTransform Overlap (replaces Physics2D triggers) ---
+
+        /// <summary>
+        /// Checks which PileViews the card currently overlaps by comparing
+        /// world-space RectTransform bounds. No Collider2D or Rigidbody2D needed.
+        /// </summary>
+        private List<PileView> FindOverlappingPiles()
+        {
+            var result = new List<PileView>(4);
+            var cardCorners = new Vector3[4];
+            _rectTransform.GetWorldCorners(cardCorners);
+            var cardRect = WorldCornersToRect(cardCorners);
+
+            var pileCorners = new Vector3[4];
+            foreach (var pileView in _cardSpawner.AllPileViews)
+            {
+                pileView.CardsHolder.GetWorldCorners(pileCorners);
+                var pileRect = WorldCornersToRect(pileCorners);
+
+                if (cardRect.Overlaps(pileRect))
+                    result.Add(pileView);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Converts the 4 world corners from GetWorldCorners() into a Rect.
+        /// Corners are: [0]=bottomLeft, [1]=topLeft, [2]=topRight, [3]=bottomRight.
+        /// </summary>
+        private static Rect WorldCornersToRect(Vector3[] corners)
+        {
+            float xMin = corners[0].x;
+            float yMin = corners[0].y;
+            float xMax = corners[2].x;
+            float yMax = corners[2].y;
+            return new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
         }
 
         // --- Animation ---
@@ -307,25 +352,6 @@ namespace Solitaire.Presentation.Canvas
             // Ensure front image is reset if shake was active
             if (_frontImageRestCached && _frontImage != null)
                 _frontImage.rectTransform.anchoredPosition = _frontImageRestPosition;
-        }
-
-        // --- Physics Trigger Events ---
-
-        private readonly List<DropZone> _overlappingZones = new List<DropZone>();
-
-        private void OnTriggerEnter2D(Collider2D other)
-        {
-            if (other.TryGetComponent(out DropZone zone))
-            {
-                if (!_overlappingZones.Contains(zone))
-                    _overlappingZones.Add(zone);
-            }
-        }
-
-        private void OnTriggerExit2D(Collider2D other)
-        {
-            if (other.TryGetComponent(out DropZone zone))
-                _overlappingZones.Remove(zone);
         }
     }
 }
