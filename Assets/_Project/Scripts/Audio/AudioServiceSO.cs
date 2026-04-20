@@ -71,5 +71,30 @@ namespace Solitaire.Audio
             get => _player?.MusicVolume ?? 1f;
             set { if (_player != null) _player.MusicVolume = value; }
         }
+
+        // --- Editor Play Mode Cleanup ---
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Clears the stale player reference when exiting Play Mode.
+        /// Prevents IsReady returning true after domain reload is skipped
+        /// (Enter Play Mode Settings with Reload Domain disabled).
+        /// </summary>
+        private void OnEnable()
+        {
+            UnityEditor.EditorApplication.playModeStateChanged += OnPlayModeChanged;
+        }
+
+        private void OnDisable()
+        {
+            UnityEditor.EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+        }
+
+        private void OnPlayModeChanged(UnityEditor.PlayModeStateChange state)
+        {
+            if (state == UnityEditor.PlayModeStateChange.ExitingPlayMode)
+                _player = null;
+        }
+#endif
     }
 }

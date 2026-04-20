@@ -139,7 +139,7 @@ namespace Solitaire.Tests
         public void OnCardAdded_FiresEvent()
         {
             Card eventCard = null;
-            _foundation.OnCardAddedEvent += c => eventCard = c;
+            _foundation.OnCardAddedEvent += (c, p) => eventCard = c;
 
             var ace = new Card(Suit.Hearts, Rank.Ace, true);
             _foundation.Push(ace);
@@ -242,7 +242,7 @@ namespace Solitaire.Tests
         public void OnCardRemoved_FiresEvent()
         {
             Card eventCard = null;
-            _foundation.OnCardRemovedEvent += c => eventCard = c;
+            _foundation.OnCardRemovedEvent += (c, p) => eventCard = c;
 
             var ace = new Card(Suit.Hearts, Rank.Ace, true);
             _foundation.Push(ace);

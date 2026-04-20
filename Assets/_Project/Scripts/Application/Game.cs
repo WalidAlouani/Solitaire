@@ -78,10 +78,14 @@ namespace Solitaire.Application
             CheckAutoCompleteStatus();
         }
 
-        private void HandleFoundationCardAdded(Card card)
+        /// <summary>
+        /// Foundation-specific handler: checks for win after each card added.
+        /// Pile identity is passed directly from the event — no linear scan needed.
+        /// </summary>
+        private void HandleFoundationCardAdded(Card card, CardPile pile)
         {
-            UpdateCardPileMapping(card);
-            OnCardMoved?.Invoke(card, FindPileForCard(card));
+            _cardToPile[card] = pile;
+            OnCardMoved?.Invoke(card, pile);
 
             if (CheckWin())
                 OnGameWon?.Invoke();
@@ -89,14 +93,14 @@ namespace Solitaire.Application
                 CheckAutoCompleteStatus();
         }
 
-        private void HandleCardAdded(Card card)
+        private void HandleCardAdded(Card card, CardPile pile)
         {
-            UpdateCardPileMapping(card);
-            OnCardMoved?.Invoke(card, FindPileForCard(card));
+            _cardToPile[card] = pile;
+            OnCardMoved?.Invoke(card, pile);
             CheckAutoCompleteStatus();
         }
 
-        private void HandleCardRemoved(Card card)
+        private void HandleCardRemoved(Card card, CardPile pile)
         {
             // Mapping will be updated when the card is added to its new pile
         }
@@ -298,17 +302,6 @@ namespace Solitaire.Application
         {
             if (_commandManager.CanRedo)
                 _commandManager.Redo();
-        }
-
-        // --- Private helpers ---
-
-        private void UpdateCardPileMapping(Card card)
-        {
-            // Find which pile actually contains this card now
-            foreach (var p in Tableaus) if (p.Contains(card)) { _cardToPile[card] = p; return; }
-            foreach (var p in Foundations) if (p.Contains(card)) { _cardToPile[card] = p; return; }
-            if (Stock.Contains(card)) { _cardToPile[card] = Stock; return; }
-            if (Waste.Contains(card)) { _cardToPile[card] = Waste; return; }
         }
     }
 }

@@ -73,8 +73,12 @@ namespace Solitaire.Domain.Piles
         /// </summary>
         public Stack<Card>.Enumerator GetEnumerator() => _cards.GetEnumerator();
 
-        public event Action<Card> OnCardAddedEvent;
-        public event Action<Card> OnCardRemovedEvent;
+        /// <summary>
+        /// Passes both the card and the pile that raised the event,
+        /// so subscribers can update mappings in O(1) without a linear scan.
+        /// </summary>
+        public event Action<Card, CardPile> OnCardAddedEvent;
+        public event Action<Card, CardPile> OnCardRemovedEvent;
 
         /// <summary>
         /// Delegates to the injected IDropRule strategy.
@@ -89,7 +93,7 @@ namespace Solitaire.Domain.Piles
         public abstract void OnCardAdded(Card card);
         public abstract void OnCardRemoved(Card card);
 
-        protected void RaiseCardAdded(Card card) => OnCardAddedEvent?.Invoke(card);
-        protected void RaiseCardRemoved(Card card) => OnCardRemovedEvent?.Invoke(card);
+        protected void RaiseCardAdded(Card card) => OnCardAddedEvent?.Invoke(card, this);
+        protected void RaiseCardRemoved(Card card) => OnCardRemovedEvent?.Invoke(card, this);
     }
 }

@@ -204,7 +204,7 @@ namespace Solitaire.Tests
         public void OnCardAdded_FiresEvent()
         {
             Card eventCard = null;
-            _tableau.OnCardAddedEvent += c => eventCard = c;
+            _tableau.OnCardAddedEvent += (c, p) => eventCard = c;
 
             var card = new Card(Suit.Hearts, Rank.Five, true);
             _tableau.Push(card);
@@ -216,7 +216,7 @@ namespace Solitaire.Tests
         public void OnCardRemoved_FiresEvent()
         {
             Card eventCard = null;
-            _tableau.OnCardRemovedEvent += c => eventCard = c;
+            _tableau.OnCardRemovedEvent += (c, p) => eventCard = c;
 
             var card = new Card(Suit.Hearts, Rank.Five, true);
             _tableau.Push(card);
