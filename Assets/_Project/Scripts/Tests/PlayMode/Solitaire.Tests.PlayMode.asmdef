@@ -4,7 +4,12 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "Solitaire.Game"
+        "Solitaire.Domain",
+        "Solitaire.Application",
+        "Solitaire.Presentation",
+        "Solitaire.Audio",
+        "Solitaire.Core",
+        "Solitaire.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

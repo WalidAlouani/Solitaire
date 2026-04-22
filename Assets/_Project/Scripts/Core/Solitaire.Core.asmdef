@@ -1,0 +1,19 @@
+{
+    "name": "Solitaire.Core",
+    "rootNamespace": "Solitaire.Core",
+    "references": [
+        "Solitaire.Domain",
+        "Solitaire.Application",
+        "Solitaire.Audio",
+        "Solitaire.Presentation"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

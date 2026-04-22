@@ -1,9 +1,7 @@
 {
-    "name": "Solitaire.Game",
-    "rootNamespace": "Solitaire",
-    "references": [
-        "GUID:6055be8ebefd69e48b49212b09b47b2f"
-    ],
+    "name": "Solitaire.UI",
+    "rootNamespace": "Solitaire.UI",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
